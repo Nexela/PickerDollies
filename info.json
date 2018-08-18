@@ -1,0 +1,11 @@
+{
+    "name": "PickerDollies",
+    "version": "1.0.0",
+    "factorio_version": "0.17",
+    "title": "Picker Dollies",
+    "author": "Nexela",
+    "contact": "nexela@gmail.com",
+    "dependencies": ["base >= 0.17.0", "stdlib >= 1.0.0", "(?) PickerExtended >= 3.0.4"],
+    "homepage": "",
+    "description": "Move most placed entities quickly and easily."
+  }
