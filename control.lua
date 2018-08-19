@@ -6,7 +6,7 @@ local Event = require('__stdlib__/event/event')
 local Player = require('__stdlib__/event/player').register_events(true)
 local Area = require('__stdlib__/area/area')
 local Position = require('__stdlib__/area/position')
-local interface = require('interface')
+local interface = require('__PickerExtended__/interface')
 
 --[[
 Event table returned with the event
@@ -300,9 +300,6 @@ local function rotate_ghost(event)
 end
 Event.register({'dolly-rotate-ghost', 'dolly-rotate-ghost-reverse'}, rotate_ghost)
 
-local function on_init()
-    Player.init()
-end
-Event.register(Event.core_events.init, on_init)
+Player.register_events(true)
 
 remote.add_interface(script.mod_name, interface)
