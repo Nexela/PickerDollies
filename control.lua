@@ -2,10 +2,10 @@
 --[Picker Dolly]--
 -------------------------------------------------------------------------------
 
-local Event = require('__stdlib__/event/event')
-local Player = require('__stdlib__/event/player').register_events(true)
-local Area = require('__stdlib__/area/area')
-local Position = require('__stdlib__/area/position')
+local Event = require('__stdlib__/stdlib/event/event')
+local Player = require('__stdlib__/stdlib/event/player').register_events(true)
+local Area = require('__stdlib__/stdlib/area/area')
+local Position = require('__stdlib__/stdlib/area/position')
 local interface = require('__PickerExtended__/interface')
 
 --[[
@@ -299,7 +299,5 @@ local function rotate_ghost(event)
     end
 end
 Event.register({'dolly-rotate-ghost', 'dolly-rotate-ghost-reverse'}, rotate_ghost)
-
-Player.register_events(true)
 
 remote.add_interface(script.mod_name, interface)

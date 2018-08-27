@@ -1,4 +1,4 @@
-require('__stdlib__/core')
+require('__stdlib__/stdlib/core')
 
 data:extend {
     {
