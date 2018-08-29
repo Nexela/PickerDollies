@@ -6,7 +6,7 @@ local Event = require('__stdlib__/stdlib/event/event')
 local Player = require('__stdlib__/stdlib/event/player').register_events(true)
 local Area = require('__stdlib__/stdlib/area/area')
 local Position = require('__stdlib__/stdlib/area/position')
-local interface = require('__PickerExtended__/interface')
+local interface = require('__stdlib__/stdlib/scripts/interface')
 
 --[[
 Event table returned with the event
