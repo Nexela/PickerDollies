@@ -7,6 +7,7 @@ local Player = require('__stdlib__/stdlib/event/player').register_events(true)
 local Area = require('__stdlib__/stdlib/area/area')
 local Position = require('__stdlib__/stdlib/area/position')
 local interface = require('__stdlib__/stdlib/scripts/interface')
+local table = require('__stdlib__/stdlib/utils/table')
 
 --[[
 Event table returned with the event
