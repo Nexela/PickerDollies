@@ -6,6 +6,7 @@ local Event = require('__stdlib__/stdlib/event/event')
 local Player = require('__stdlib__/stdlib/event/player').register_events(true)
 local Area = require('__stdlib__/stdlib/area/area')
 local Position = require('__stdlib__/stdlib/area/position')
+local Direction = require('__stdlib__/stdlib/area/direction')
 local interface = require('__stdlib__/stdlib/scripts/interface')
 local table = require('__stdlib__/stdlib/utils/table')
 
@@ -124,12 +125,12 @@ local function move_combinator(event)
                 )
             end
 
-            local out_of_the_way = Position(entity.position):translate(Position.opposite_direction(direction), event.tiles_away or 20)
+            local out_of_the_way = Position(entity.position):translate(Direction.opposite_direction(direction), event.tiles_away or 20)
 
             local sel_area = Area(entity.selection_box)
             local item_area = Area(entity.bounding_box):non_zero():translate(direction, distance)
 
-            local update = entity.surface.find_entities_filtered {area = sel_area:copy():expand(32), force = entity.force}
+            local update = entity.surface.find_entities_filtered {area = sel_area:expand(32), force = entity.force}
             local items_on_ground = entity.surface.find_entities_filtered {type = 'item-entity', area = item_area}
             local proxy = entity.surface.find_entities_filtered {name = 'item-request-proxy', area = sel_area:non_zero(), force = player.force}[1]
 
