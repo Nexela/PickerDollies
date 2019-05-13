@@ -40,7 +40,8 @@ local function blacklist(entity)
         ['car'] = true,
         ['construction-robot'] = true,
         ['logistic-robot'] = true,
-        ['rocket'] = true
+        ['rocket'] = true,
+        ['tile-ghost'] = true
     }
     local names = {}
     return types[entity.type] or names[entity.name]
