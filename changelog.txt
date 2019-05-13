@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.1
+Date: ??????
+  Features:
+    - Added remote interfaces for adding/removing/checking the blacklist 'add_blacklist_name', 'remove_blacklist_name', 'get_blacklist_names'.
+  Bugfixes:
+    - Fixed tile ghost bug by adding tile ghosts to the blacklist.
+    - Small fixes and code improvements.
+    - Fixed rotating ghosts while using ghost cursor.
+---------------------------------------------------------------------------------------------------
 Version: 1.0.0
 Date: ??????
   Features:
