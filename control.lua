@@ -281,7 +281,7 @@ Event.register({'dolly-move-north', 'dolly-move-east', 'dolly-move-south', 'doll
 
 local function try_rotate_combinator(event)
     local player, pdata = Player.get(event.player_index)
-    if not player.cursor_stack.valid_for_read then
+    if not player.cursor_stack.valid_for_read and not player.cursor_ghost then
         local entity = get_saved_entity(player, pdata, event.tick)
 
         if entity and oblong_combinators[entity.name] then
@@ -313,7 +313,7 @@ Event.register('dolly-rotate-rectangle', try_rotate_combinator)
 
 local function rotate_saved_dolly(event)
     local player, pdata = Player.get(event.player_index)
-    if not player.cursor_stack.valid_for_read and not player.selected then
+    if not player.cursor_stack.valid_for_read and not player.cursor_ghost and not player.selected then
         local entity = get_saved_entity(player, pdata, event.tick)
 
         if entity and entity.supports_direction then
@@ -331,7 +331,7 @@ Event.register({'dolly-rotate-saved', 'dolly-rotate-saved-reverse'}, rotate_save
 --   "description": "Adds ghost-related functionality like pipette, rotation, selection.",
 local function rotate_ghost(event)
     local player, pdata = Player.get(event.player_index)
-    if not player.cursor_stack.valid_for_read then
+    if not player.cursor_stack.valid_for_read and not player.cursor_ghost then
         local ghost = get_saved_entity(player, pdata, event.tick)
         if ghost and ghost.name == 'entity-ghost' then
             local left = event.input_name == 'picker-rotate-ghost-reverse'
