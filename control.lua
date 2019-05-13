@@ -133,7 +133,7 @@ local function _get_distance(entity)
     end
 end
 
-local function move_combinator(event)
+local function move_entity(event)
     local player, pdata = Player.get(event.player_index)
     local entity = get_saved_entity(player, pdata, event.tick)
 
@@ -142,21 +142,18 @@ local function move_combinator(event)
             --Direction to move the source
             local direction = event.direction or input_to_direction[event.input_name]
             --The entities direction
-            local ent_direction = entity.direction
-            --Distance to move the source, defaults to 1
-            local distance = event.distance or 1
-
+            local entity_direction = entity.direction
+            --Distance to move the source, defaults to 1 + grid shift
+            local distance = event.distance or 1 + entity.prototype.building_grid_bit_shift
             --Where we started from in case we have to return it
             local start_pos = Position(event.start_pos or entity.position)
             --Where we want to go too
-            local target_pos = Position(entity.position):translate(direction, distance)
-
+            local target_pos = start_pos:translate(direction, distance)
             --Wire distance for the source
             local source_distance = _get_distance(entity)
 
             --returns true if the wires can't reach
-            local _cant_reach =
-                function(neighbours)
+            local _cant_reach = function(neighbours)
                 return table.any(
                     neighbours,
                     function(neighbour)
@@ -166,52 +163,74 @@ local function move_combinator(event)
                 )
             end
 
-            local out_of_the_way = Position(entity.position):translate(Direction.opposite_direction(direction), event.tiles_away or 20)
+            -- Save fluid boxes here
+            local fluidbox = {}
+            for i = 1, #entity.fluidbox do
+                fluidbox[i] = entity.fluidbox[i]
+            end
 
-            local sel_area = Area(entity.selection_box)
-            local item_area = Area(entity.bounding_box):non_zero():translate(direction, distance)
+            local out_of_the_way = start_pos:translate(Direction.opposite_direction(direction), event.tiles_away or 20)
 
-            local update = entity.surface.find_entities_filtered {area = sel_area:expand(32), force = entity.force}
-            local items_on_ground = entity.surface.find_entities_filtered {type = 'item-entity', area = item_area}
-            local proxy = entity.surface.find_entities_filtered {name = 'item-request-proxy', area = sel_area:non_zero(), force = player.force}[1]
+            local bounding_box = Area(entity.bounding_box):non_zero()
+
+            local updateable_entities = entity.surface.find_entities_filtered {area = bounding_box:expand(32), force = entity.force}
+            local items_on_ground = entity.surface.find_entities_filtered {type = 'item-entity', area = bounding_box:translate(direction, distance)}
+            --local proxy = entity.surface.find_entities_filtered {name = 'item-request-proxy', area = sel_area:non_zero(), force = player.force}[1]
+            local proxy = entity.surface.find_entities_filtered {name = 'item-request-proxy', position = start_pos, force = player.force}[1]
 
             --Update everything after teleporting
-            local function teleport_and_update(ent, pos, raise)
-                if ent.last_user then
-                    ent.last_user = player
+            local function teleport_and_update(pos, raise)
+                if entity.last_user then
+                    entity.last_user = player
                 end
-                ent.teleport(pos)
+
+                entity.teleport(pos)
+
+                -- Insert fluid back here.
+                for i = 1, #fluidbox do
+                    entity.fluidbox[i] = fluidbox[i]
+                end
+
+                -- Mine or move out of the way any items on the ground
                 table.each(
                     items_on_ground,
                     function(item)
                         if item.valid and not player.mine_entity(item) then
-                            item.teleport(entity.surface.find_non_colliding_position('item-on-ground', ent.position, 0, .20))
+                            item.teleport(entity.surface.find_non_colliding_position('item-on-ground', entity.position, 0, .20))
                         end
                     end
                 )
+
+                -- Move the proxy to the correct position
                 if proxy and proxy.valid then
-                    proxy.teleport(ent.position)
+                    proxy.teleport(entity.position)
                 end
+
+                -- Update all connections
                 table.each(
-                    update,
-                    function(e)
-                        e.update_connections()
+                    updateable_entities,
+                    function(updateable_entity)
+                        updateable_entity.update_connections()
                     end
                 )
+
                 if raise then
-                    script.raise_event(Event.generate_event_name('dolly_moved'), {player_index = player.index, moved_entity = ent, start_pos = start_pos})
+                    script.raise_event(Event.generate_event_name('dolly_moved'), {player_index = player.index, moved_entity = entity, start_pos = start_pos})
                 else
                     player.play_sound({path = 'utility/cannot_build', position = player.position, volume = 1})
                 end
                 return raise
             end
 
-            --teleport the entity out of the way.
+            -- Remove the fluids because geez
+            if entity.get_fluid_count() > 0 then
+                entity.clear_fluid_inside()
+            end
+
+            -- Teleport the entity out of the way.
             if entity.teleport(out_of_the_way) then
                 if proxy and proxy.proxy_target == entity then
                     proxy.teleport(entity.position)
-                else
-                    proxy = false
                 end
 
                 table.each(
@@ -223,33 +242,32 @@ local function move_combinator(event)
 
                 pdata.dolly = entity
                 pdata.dolly_tick = event.tick
-                entity.direction = ent_direction
+                entity.direction = entity_direction
 
-                local ghost = entity.name == 'entity-ghost' and entity.ghost_name
-
-                local params = {name = ghost or entity.name, position = target_pos, direction = ent_direction, force = entity.force}
+                local ghost_name = entity.name == 'entity-ghost' and entity.ghost_name
+                local params = {name = ghost_name or entity.name, position = target_pos, direction = entity_direction, force = entity.force}
                 if entity.surface.can_place_entity(params) and not entity.surface.find_entity('entity-ghost', target_pos) then
                     --We can place the entity here, check for wire distance
                     if entity.circuit_connected_entities then
                         if wire_distance_types[entity.type] and not table.any(entity.neighbours, _cant_reach) then
-                            return teleport_and_update(entity, target_pos, true)
+                            return teleport_and_update(target_pos, true)
                         elseif not wire_distance_types[entity.type] and not table.any(entity.circuit_connected_entities, _cant_reach) then
                             if entity.type == 'mining-drill' and find_resources(entity) == 0 then
                                 local name = entity.mining_target and entity.mining_target.localised_name or {'picker-dollies.generic-ore-patch'}
                                 player.print({'picker-dollies.off-ore-patch', entity.localised_name, name})
-                                return teleport_and_update(entity, start_pos, false)
+                                return teleport_and_update(start_pos, false)
                             else
-                                return teleport_and_update(entity, target_pos, true)
+                                return teleport_and_update(target_pos, true)
                             end
                         else
                             player.print({'picker-dollies.wires-maxed'})
-                            return teleport_and_update(entity, start_pos, false)
+                            return teleport_and_update(start_pos, false)
                         end
                     else --All others
-                        return teleport_and_update(entity, target_pos, true)
+                        return teleport_and_update(target_pos, true)
                     end
                 else --Ent can't won't fit, restore position.
-                    return teleport_and_update(entity, start_pos, false)
+                    return teleport_and_update(start_pos, false)
                 end
             else --Entity can't be teleported
                 player.print({'picker-dollies.cant-be-teleported', entity.localised_name})
@@ -259,7 +277,7 @@ local function move_combinator(event)
         end
     end
 end
-Event.register({'dolly-move-north', 'dolly-move-east', 'dolly-move-south', 'dolly-move-west'}, move_combinator)
+Event.register({'dolly-move-north', 'dolly-move-east', 'dolly-move-south', 'dolly-move-west'}, move_entity)
 
 local function try_rotate_combinator(event)
     local player, pdata = Player.get(event.player_index)
@@ -284,7 +302,7 @@ local function try_rotate_combinator(event)
 
                 event.direction = diags[entity.direction]
 
-                if not move_combinator(event) then
+                if not move_entity(event) then
                     entity.direction = event.start_direction
                 end
             end
