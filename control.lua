@@ -19,19 +19,57 @@ Event table returned with the event
 }
 
 --In your mods on_load and on_init, create an event handler for the dolly_moved_entity_id
---Adding the event registration in on_load and on_init you should not have to add picker as an optional dependency
+--Adding the event registration in on_load and on_init you do not have to add picker as an optional dependency
 
 if remote.interfaces["PickerDollies"] and remote.interfaces["PickerDollies"]["dolly_moved_entity_id"] then
     script.on_event(remote.call("PickerDollies", "dolly_moved_entity_id"), function_to_update_positions)
 end
 --]]
-
 Event.generate_event_name('dolly_moved')
 interface['dolly_moved_entity_id'] = function()
     return Event.generate_event_name('dolly_moved')
 end
+interface['add_blacklist_name'] = function(entity_name, silent)
+    if game.entity_prototypes[entity_name] and not global.blacklist_names[entity_name] then
+        global.blacklist_names[entity_name] = true
+        if not silent then
+            game.print('Picker Dollies added ' .. entity_name .. ' to the blacklist.')
+        end
+        return true
+    else
+        if not silent then
+            game.print('Picker Dollies could not add ' .. entity_name .. ' to the blacklist.')
+            game.print('Entity name does not exist or is already blacklisted.')
+        end
+        return false
+    end
+end
+interface['remove_blacklist_name'] = function(entity_name, silent)
+    global.blacklist_names[entity_name] = nil
+    if not silent then
+        game.print('Picker Dollies removed ' .. entity_name .. ' from the blacklist.')
+    end
+    return true
+end
+interface['get_blacklist_names'] = function(entity_name, silent)
+    if entity_name then
+        local key = global.blacklist_names[entity_name]
+        if not silent then
+            local is = key and ' is ' or ' is not '
+            game.print('Picker Dollies: '.. entity_name .. is .. 'blacklisted.')
+        end
+        return global.blacklist_names[entity_name]
+    else
+        local keys = table.keys(global.blacklist_names)
+        if not silent then
+            game.print('Picker Dollies: blacklisted names = '.. table.concat(keys))
+        end
+        return keys
+    end
+end
 
 local function blacklist(entity)
+    local name = entity.name
     local types = {
         ['item-request-proxy'] = true,
         ['rocket-silo-rocket'] = true,
@@ -44,7 +82,7 @@ local function blacklist(entity)
         ['tile-ghost'] = true
     }
     local names = {}
-    return types[entity.type] or names[entity.name]
+    return types[entity.type] or names[name] or global.blacklist_names[name]
 end
 
 local input_to_direction = {
@@ -74,9 +112,10 @@ local function find_resources(entity)
 end
 
 local function get_saved_entity(player, pdata, tick)
-    if player.selected and player.selected.force == player.force and not blacklist(player.selected) then
-        return player.selected
-    elseif pdata.dolly and pdata.dolly.valid then
+    local selected = player.selected
+    if selected and selected.force == player.force and not blacklist(selected) then
+        return selected
+    elseif pdata.dolly and pdata.dolly.valid and not blacklist(pdata.dolly) then
         if tick <= (pdata.dolly_tick or 0) + defines.time.second * 5 then
             return pdata.dolly
         else
@@ -303,5 +342,20 @@ local function rotate_ghost(event)
     end
 end
 Event.register({'dolly-rotate-ghost', 'dolly-rotate-ghost-reverse'}, rotate_ghost)
+
+local function create_global_blacklist()
+    global.blacklist_names = {}
+end
+Event.register(Event.core_events.on_init, create_global_blacklist)
+
+local function update_blacklist()
+    global.blacklist_names = global.blacklist_names or {}
+    for name in pairs(global.blacklist_names) do
+        if not game.entity_prototypes[name] then
+            global.blacklist_names[name] = nil
+        end
+    end
+end
+Event.register(Event.core_events.on_configuration_changed, update_blacklist)
 
 remote.add_interface(script.mod_name, interface)
