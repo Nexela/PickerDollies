@@ -30,6 +30,7 @@ interface['dolly_moved_entity_id'] = function()
     return Event.generate_event_name('dolly_moved')
 end
 interface['add_blacklist_name'] = function(entity_name, silent)
+    global.blacklist_names = global.blacklist_names or {}
     if game.entity_prototypes[entity_name] and not global.blacklist_names[entity_name] then
         global.blacklist_names[entity_name] = true
         if not silent then
@@ -45,6 +46,7 @@ interface['add_blacklist_name'] = function(entity_name, silent)
     end
 end
 interface['remove_blacklist_name'] = function(entity_name, silent)
+    global.blacklist_names = global.blacklist_names or {}
     global.blacklist_names[entity_name] = nil
     if not silent then
         game.print('Picker Dollies removed ' .. entity_name .. ' from the blacklist.')
@@ -52,6 +54,7 @@ interface['remove_blacklist_name'] = function(entity_name, silent)
     return true
 end
 interface['get_blacklist_names'] = function(entity_name, silent)
+    global.blacklist_names = global.blacklist_names or {}
     if entity_name then
         local key = global.blacklist_names[entity_name]
         if not silent then
