@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.0.3
+Date: ??????
+  Features:
+    - Changed all error messages to local flying text to be consistent with base game.
+  Bugfixes:
+    - Fixed some logic checks.
+    - Fixed miners not correctly checking target spot for same ore type.
+    - Fixed some missing error messages.
+---------------------------------------------------------------------------------------------------
 Version: 1.0.2
 Date: ??????
   Bugfixes:
