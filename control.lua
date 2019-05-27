@@ -2,8 +2,7 @@
 --[Picker Dolly]--
 -------------------------------------------------------------------------------
 
-local Event = require('__stdlib__/stdlib/event/event')
-Event.protected_mode = true
+local Event = require('__stdlib__/stdlib/event/event').set_protected_mode(true)
 local Player = require('__stdlib__/stdlib/event/player').register_events(true)
 local Area = require('__stdlib__/stdlib/area/area')
 local Position = require('__stdlib__/stdlib/area/position')
