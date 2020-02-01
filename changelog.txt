@@ -31,5 +31,5 @@ Version: 1.0.0
 Date: ??????
   Features:
     - Seperated into its own mod.
-  Breaking Changes:
+  Changes:
     - Interface name has been changed to 'PickerDollies', Mod authors will need to update their scripts that use this.
