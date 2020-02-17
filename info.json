@@ -1,11 +1,21 @@
 {
     "name": "PickerDollies",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "factorio_version": "0.18",
     "title": "Picker Dollies",
     "author": "Nexela",
     "contact": "nexela@gmail.com",
     "dependencies": ["base >= 0.18.0", "stdlib >= 1.0.0", "PickerAtheneum >= 1.0.0"],
     "homepage": "",
-    "description": "Move most placed entities quickly and easily."
+    "description": "Move most placed entities quickly and easily.",
+    "package": {
+      "ignore": ["makefile"],
+      "scripts": {
+        "datestamp": ".vscode/datestamp.sh",
+        "prepackage": ".vscode/prepackage.sh",
+        "prepublish": ".vscode/prepublish.sh",
+        "publish": ".vscode/publish.sh",
+        "version": ".vscode/version.sh"
+      }
+    }
   }
