@@ -12,13 +12,14 @@ local table = require('__stdlib__/stdlib/utils/table')
 
 --[[
 Event table returned with the event
-    player_index = player_index, --The index of the player who moved the entity
-    moved_entity = entity, --The entity that was moved
-    start_pos = position --The position that the entity was moved from
-}
+    {
+        player_index = player_index, -- The index of the player who moved the entity
+        moved_entity = entity, -- The entity that was moved
+        start_pos = position -- The position that the entity was moved from
+    }
 
---In your mods on_load and on_init, create an event handler for the dolly_moved_entity_id
---Adding the event registration in on_load and on_init you do not have to add picker as an optional dependency
+-- In your mods on_load and on_init, create an event handler for the dolly_moved_entity_id
+-- Adding the event registration in on_load and on_init you do not have to add picker as an optional dependency
 
 if remote.interfaces["PickerDollies"] and remote.interfaces["PickerDollies"]["dolly_moved_entity_id"] then
     script.on_event(remote.call("PickerDollies", "dolly_moved_entity_id"), function_to_update_positions)
@@ -275,7 +276,7 @@ local function move_entity(event)
                         return teleport_and_update(start_pos, false, {'picker-dollies.no-room', entity.localised_name})
                     end
                 else -- Entity can't be teleported
-                    --! API request: can_be_teleported
+                    -- API request: can_be_teleported
                     -- This logic is really too high up the chain!
                     player.create_local_flying_text {text = {'picker-dollies.cant-be-teleported', entity.localised_name}, position = entity.position}
                     player.play_sound({path = 'utility/cannot_build', position = player.position, volume = 1})
