@@ -9,7 +9,7 @@
     "homepage": "",
     "description": "Move most placed entities quickly and easily.",
     "package": {
-      "ignore": ["makefile"],
+      "ignore": [],
       "scripts": {
         "datestamp": "../PickerAtheneum/.publish/datestamp.sh",
         "prepackage": "../PickerAtheneum/.publish/prepackage.sh",
