@@ -71,6 +71,10 @@ interface['get_blacklist_names'] = function(entity_name, silent)
     end
 end
 
+local function play_sound(player)
+    player.play_sound{path = 'utility/cannot_build', position = player.position, volume = 1}
+end
+
 local function is_blacklisted(entity)
     local name = entity.name
     local types = {
@@ -183,7 +187,6 @@ local function move_entity(event)
 
                 local updateable_entities = entity.surface.find_entities_filtered {area = bounding_box:expand(32), force = entity.force}
                 local items_on_ground = entity.surface.find_entities_filtered {type = 'item-entity', area = bounding_box:translate(direction, distance)}
-                --local proxy = entity.surface.find_entities_filtered {name = 'item-request-proxy', area = sel_area:non_zero(), force = player.force}[1]
                 local proxy = entity.surface.find_entities_filtered {name = 'item-request-proxy', position = start_pos, force = player.force}[1]
 
                 --Update everything after teleporting
@@ -225,7 +228,7 @@ local function move_entity(event)
                     if raise then
                         script.raise_event(Event.generate_event_name('dolly_moved'), {player_index = player.index, moved_entity = entity, start_pos = start_pos})
                     else
-                        player.play_sound({path = 'utility/cannot_build', position = player.position, volume = 1})
+                        play_sound(player)
                         player.create_local_flying_text {text = reason, position = pos}
                     end
                     return raise
@@ -279,15 +282,15 @@ local function move_entity(event)
                     -- API request: can_be_teleported
                     -- This logic is really too high up the chain!
                     player.create_local_flying_text {text = {'picker-dollies.cant-be-teleported', entity.localised_name}, position = entity.position}
-                    player.play_sound({path = 'utility/cannot_build', position = player.position, volume = 1})
+                    play_sound(player)
                 end
             else -- Entity is blacklisted
                 player.create_local_flying_text {text = {'picker-dollies.cant-be-teleported', entity.localised_name}, position = entity.position}
-                player.play_sound({path = 'utility/cannot_build', position = player.position, volume = 1})
+                play_sound(player)
             end
         else -- Entity can't be reached
             player.create_local_flying_text {text = {'cant-reach'}, position = entity.position}
-            player.play_sound({path = 'utility/cannot_build', position = player.position, volume = 1})
+            play_sound(player)
         end
     end
 end
