@@ -151,8 +151,8 @@ local function move_entity(event)
             if not is_blacklisted(entity) then
                 --Direction to move the source
                 local direction = event.direction or input_to_direction[event.input_name]
-                --Distance to move the source, defaults to 1 + grid shift
-                local distance = event.distance or 1 + entity.prototype.building_grid_bit_shift
+                --Distance to move the source, defaults to 1
+                local distance = event.distance or 1
                 --Where we started from in case we have to return it
                 local start_pos = Position(event.start_pos or entity.position)
                 --Where we want to go too
