@@ -7,8 +7,6 @@ local Player = require('__stdlib__/stdlib/event/player').register_events(true)
 local Area = require('__stdlib__/stdlib/area/area')
 local Position = require('__stdlib__/stdlib/area/position')
 local Direction = require('__stdlib__/stdlib/area/direction')
-local table = require('__stdlib__/stdlib/utils/table')
-local interface = require('interface')
 
 --[[
 Event table returned with the event
@@ -31,17 +29,16 @@ local function play_error_sound(player)
     player.play_sound {path = 'utility/cannot_build', position = player.position, volume = 1}
 end
 
-local corners = {'left_top', 'left_bottom', 'right_top', 'right_bottom'}
-
 local function is_blacklisted(entity, cheat_mode)
-    local name = entity.name
 
     local cheat_types = {
         ['character'] = true,
         ['unit'] = true,
         ['unit-spawner'] = true,
-        ['car'] = true
+        ['car'] = true,
+        ['spidertron-vehicle'] = true
     }
+
     local types = {
         ['item-request-proxy'] = true,
         ['rocket-silo-rocket'] = true,
@@ -49,18 +46,17 @@ local function is_blacklisted(entity, cheat_mode)
         ['construction-robot'] = true,
         ['logistic-robot'] = true,
         ['rocket'] = true,
-        ['tile-ghost'] = true
+        ['tile-ghost'] = true,
+        ['item-entity'] = true
     }
-    local names = {}
 
-    local listed = types[entity.type] or names[name] or global.blacklist_names[name]
+    local listed = types[entity.type] or global.blacklist_names[entity.name]
 
     if cheat_mode then
         return listed
     else
         return listed or cheat_types[entity.type]
     end
-    -- return cheat_mode and listed or (listed or cheat_types[entity.type])
 end
 
 local input_to_direction = {
@@ -80,17 +76,6 @@ local copper_wire_types = {
     ['power-switch'] = true
 }
 
-local function find_resources(entity, direction, distance)
-    if entity.type == 'mining-drill' then
-        local area = Position(entity.position)
-        area = area:expand_to_area(game.entity_prototypes[entity.name].mining_drill_radius)
-        area = area:translate(direction, distance)
-        local resource_name = entity.mining_target and entity.mining_target.name or nil
-        return entity.surface.count_entities_filtered {area = area, type = 'resource', name = resource_name}, resource_name
-    end
-    return 0, {'picker-dollies.generic-ore-patch'}
-end
-
 local function get_saved_entity(player, pdata, tick)
     local selected = player.selected
     if selected then
@@ -102,14 +87,6 @@ local function get_saved_entity(player, pdata, tick)
             pdata.dolly = nil
             return
         end
-    end
-end
-
-local function _get_max_wire_len(entity)
-    if copper_wire_types[entity.type] then
-        return entity.prototype.max_wire_distance
-    elseif entity.circuit_connected_entities then
-        return entity.prototype.max_circuit_wire_distance
     end
 end
 
@@ -149,37 +126,54 @@ local function move_entity(event)
         local target_pos = start_pos:translate(direction, distance)
         -- Target selection box location
         local target_box = Area(entity.selection_box):translate(direction, distance):corners()
-        -- Wire distance for the source
-        local wire_distance = _get_max_wire_len(entity)
-        -- The entities direction
+
         local entity_direction = entity.direction
-        -- Resources for mining drills
-        local resource_count, resource_name = find_resources(entity, direction, distance)
         local surface = entity.surface
 
-        -- Returns true if the wires can't reach
-        local function _cant_reach(neighbours)
-            return table.any(
-                neighbours,
-                function(neighbour)
+        -- Returns true if the wires can reach
+        local function can_wires_reach()
+
+            local neighbours = copper_wire_types[entity.type] and entity.neighbours or entity.circuit_connected_entities
+            local target_dist = entity.prototype.max_wire_distance
+            local corners = {'left_top', 'left_bottom', 'right_top', 'right_bottom'}
+
+            for _, wire_type in pairs(neighbours) do
+                for _, neighbour in pairs(wire_type) do
                     if entity ~= neighbour then
-                        if entity.type == 'electric-pole' and neighbour.type == 'electric-pole' then
-                            local dist = Position(neighbour.position):distance(target_pos)
-                            return dist > entity.prototype.max_wire_distance or dist > neighbour.prototype.max_wire_distance
-                        else
+                        local n_dist = Position(neighbour.position):distance(target_pos)
+                        local min_dist = math.min(target_dist, neighbour.prototype.max_wire_distance)
+
+                        if entity.type == 'electric-pole' and neighbour.type == 'electric-pole' and n_dist > min_dist then
+                            return false
+                        end
+
+                        if n_dist > min_dist then
                             local neighbour_box = Area(neighbour.selection_box):corners()
-                            local shortest_distance = math.min(wire_distance, _get_max_wire_len(neighbour))
-                            local reach = shortest_distance + 1
+
+                            local reach = min_dist + 1
                             for _, target_corner in pairs(corners) do
                                 for _, neighbour_corner in pairs(corners) do
                                     reach = math.min(reach, target_box[target_corner]:distance(neighbour_box[neighbour_corner]))
+                                    if reach <= min_dist then
+                                        break
+                                    end
+                                end
+                                if reach <= min_dist then
+                                    break
                                 end
                             end
-                            return reach > shortest_distance
+                            if reach > min_dist then
+                                return false
+                            end
                         end
                     end
+
+                    -- if not entity.can_wires_reach(neighbour) then
+                    --     return false
+                    -- end
                 end
-            )
+            end
+            return true
         end
 
         -- Save fluid boxes here
@@ -199,6 +193,7 @@ local function move_entity(event)
                 entity.last_user = player
             end
 
+            -- Final teleport into position.
             entity.teleport(pos)
 
             -- Insert fluid back here.
@@ -207,14 +202,11 @@ local function move_entity(event)
             end
 
             -- Mine or move out of the way any items on the ground
-            table.each(
-                items_on_ground,
-                function(item)
-                    if item.valid and not player.mine_entity(item) then
-                        item.teleport(surface.find_non_colliding_position('item-on-ground', entity.position, 0, .20))
-                    end
+            for _, item in pairs(items_on_ground) do
+                if item.valid and not player.mine_entity(item) then
+                    item.teleport(surface.find_non_colliding_position('item-on-ground', entity.position, 0, .20))
                 end
-            )
+            end
 
             -- Move the proxy to the correct position
             if proxy and proxy.valid then
@@ -222,15 +214,17 @@ local function move_entity(event)
             end
 
             -- Update all connections
-            table.each(
-                updateable_entities,
-                function(updateable_entity)
-                    updateable_entity.update_connections()
-                end
-            )
+            for _, updateable in pairs(updateable_entities) do
+                updateable.update_connections()
+            end
 
             if raise then
-                script.raise_event(Event.generate_event_name('dolly_moved'), {player_index = player.index, moved_entity = entity, start_pos = start_pos})
+                local event_data = {
+                    player_index = player.index,
+                    moved_entity = entity,
+                    start_pos = start_pos
+                }
+                script.raise_event(Event.generate_event_name('dolly_moved'), event_data)
             else
                 play_error_sound(player)
                 player.create_local_flying_text {text = reason, position = pos}
@@ -245,23 +239,11 @@ local function move_entity(event)
 
         -- Teleport the entity out of the way.
         if not entity.teleport(out_of_the_way) then
-            -- Entity can't be teleported
             -- API request: can_be_teleported, This logic is really too high up the chain!
             player.create_local_flying_text {text = {'picker-dollies.cant-be-teleported', entity.localised_name}, position = entity.position}
             play_error_sound(player)
             return
         end
-
-        if proxy and proxy.proxy_target == entity then
-            proxy.teleport(entity.position)
-        end
-
-        table.each(
-            items_on_ground,
-            function(item)
-                item.teleport(out_of_the_way)
-            end
-        )
 
         pdata.dolly = entity
         pdata.dolly_tick = event.tick
@@ -269,26 +251,28 @@ local function move_entity(event)
         entity.direction = entity_direction
         local ghost_name = entity.name == 'entity-ghost' and entity.ghost_name
         local params = {name = ghost_name or entity.name, position = target_pos, direction = entity_direction, force = entity_force}
-        if entity.surface.can_place_entity(params) and not entity.surface.find_entity('entity-ghost', target_pos) then
-            -- Entity is placeable, check for wire distances
-            if entity.circuit_connected_entities then
-                if copper_wire_types[entity.type] and not table.any(entity.neighbours, _cant_reach) then
-                    return teleport_and_update(target_pos, true)
-                elseif not copper_wire_types[entity.type] and not table.any(entity.circuit_connected_entities, _cant_reach) then
-                    if entity.type == 'mining-drill' and resource_count == 0 then
-                        return teleport_and_update(start_pos, false, {'picker-dollies.off-ore-patch', entity.localised_name, resource_name})
-                    else
-                        return teleport_and_update(target_pos, true)
-                    end
-                else
-                    return teleport_and_update(start_pos, false, {'picker-dollies.wires-maxed'})
-                end
-            else -- No special cases
-                return teleport_and_update(target_pos, true)
-            end
-        else -- Entity can't fit, restore position.
+
+        if not (player.can_place_entity(params) and not entity.surface.find_entity('entity-ghost', target_pos)) then
             return teleport_and_update(start_pos, false, {'picker-dollies.no-room', entity.localised_name})
         end
+
+        if entity.circuit_connected_entities then
+            -- Teleport circuit connectables into the final position for reach checking.
+            entity.teleport(target_pos)
+            if not can_wires_reach(entity) then
+                return teleport_and_update(start_pos, false, {'picker-dollies.wires-maxed'})
+            end
+
+            if entity.type == 'mining-drill' then
+                local area = target_pos:expand_to_area(game.entity_prototypes[entity.name].mining_drill_radius)
+                local resource_name = entity.mining_target and entity.mining_target.name or nil
+                local count = entity.surface.count_entities_filtered {area = area, type = 'resource', name = resource_name}
+                if count == 0 then
+                    return teleport_and_update(start_pos, false, {'picker-dollies.off-ore-patch', entity.localised_name, resource_name})
+                end
+            end
+        end
+        return teleport_and_update(target_pos, true)
     end
 end
 Event.register({'dolly-move-north', 'dolly-move-east', 'dolly-move-south', 'dolly-move-west'}, move_entity)
@@ -335,7 +319,9 @@ end
 Event.register({'dolly-rotate-saved', 'dolly-rotate-saved-reverse'}, rotate_saved_dolly)
 
 local function create_global_blacklist()
-    global.blacklist_names = {}
+    global.blacklist_names = {
+        ['pumpjack'] = true
+    }
 end
 Event.register(Event.core_events.on_init, create_global_blacklist)
 
@@ -348,5 +334,3 @@ local function update_blacklist()
     end
 end
 Event.register(Event.core_events.on_configuration_changed, update_blacklist)
-
-remote.add_interface(script.mod_name, interface)

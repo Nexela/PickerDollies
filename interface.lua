@@ -55,4 +55,6 @@ interface['get_blacklist_names'] = function(entity_name, silent)
     end
 end
 
+remote.add_interface(script.mod_name, interface)
+
 return interface
