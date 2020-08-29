@@ -125,7 +125,7 @@ local function move_entity(event)
         -- Where we want to go too
         local target_pos = start_pos:translate(direction, distance)
         -- Target selection box location
-        local target_box = Area(entity.selection_box):translate(direction, distance):corners()
+        local target_box = Area(entity.selection_box):translate(direction, distance)
 
         local entity_direction = entity.direction
         local surface = entity.surface
@@ -134,43 +134,11 @@ local function move_entity(event)
         local function can_wires_reach()
 
             local neighbours = copper_wire_types[entity.type] and entity.neighbours or entity.circuit_connected_entities
-            local target_dist = entity.prototype.max_wire_distance
-            local corners = {'left_top', 'left_bottom', 'right_top', 'right_bottom'}
-
             for _, wire_type in pairs(neighbours) do
                 for _, neighbour in pairs(wire_type) do
-                    if entity ~= neighbour then
-                        local n_dist = Position(neighbour.position):distance(target_pos)
-                        local min_dist = math.min(target_dist, neighbour.prototype.max_wire_distance)
-
-                        if entity.type == 'electric-pole' and neighbour.type == 'electric-pole' and n_dist > min_dist then
-                            return false
-                        end
-
-                        if n_dist > min_dist then
-                            local neighbour_box = Area(neighbour.selection_box):corners()
-
-                            local reach = min_dist + 1
-                            for _, target_corner in pairs(corners) do
-                                for _, neighbour_corner in pairs(corners) do
-                                    reach = math.min(reach, target_box[target_corner]:distance(neighbour_box[neighbour_corner]))
-                                    if reach <= min_dist then
-                                        break
-                                    end
-                                end
-                                if reach <= min_dist then
-                                    break
-                                end
-                            end
-                            if reach > min_dist then
-                                return false
-                            end
-                        end
+                    if not entity.can_wires_reach(neighbour) then
+                        return false
                     end
-
-                    -- if not entity.can_wires_reach(neighbour) then
-                    --     return false
-                    -- end
                 end
             end
             return true
