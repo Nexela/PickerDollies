@@ -29,34 +29,31 @@ local function play_error_sound(player)
     player.play_sound {path = 'utility/cannot_build', position = player.position, volume = 1}
 end
 
+local blacklist_cheat_types = {
+    ['character'] = true,
+    ['unit'] = true,
+    ['unit-spawner'] = true,
+    ['car'] = true,
+    ['spidertron-vehicle'] = true
+}
+
+local blacklist_types = {
+    ['item-request-proxy'] = true,
+    ['rocket-silo-rocket'] = true,
+    ['resource'] = true,
+    ['construction-robot'] = true,
+    ['logistic-robot'] = true,
+    ['rocket'] = true,
+    ['tile-ghost'] = true,
+    ['item-entity'] = true
+}
+
 local function is_blacklisted(entity, cheat_mode)
-
-    local cheat_types = {
-        ['character'] = true,
-        ['unit'] = true,
-        ['unit-spawner'] = true,
-        ['car'] = true,
-        ['spidertron-vehicle'] = true
-    }
-
-    local types = {
-        ['item-request-proxy'] = true,
-        ['rocket-silo-rocket'] = true,
-        ['resource'] = true,
-        ['construction-robot'] = true,
-        ['logistic-robot'] = true,
-        ['rocket'] = true,
-        ['tile-ghost'] = true,
-        ['item-entity'] = true
-    }
-
-    local listed = types[entity.type] or global.blacklist_names[entity.name]
-
+    local listed = blacklist_types[entity.type] or global.blacklist_names[entity.name]
     if cheat_mode then
         return listed
-    else
-        return listed or cheat_types[entity.type]
     end
+    return listed or blacklist_cheat_types[entity.type]
 end
 
 local input_to_direction = {
@@ -116,10 +113,14 @@ local function move_entity(event)
             return
         end
 
+        local prototype = entity.prototype
+        local surface = entity.surface
+        local entity_direction = entity.direction
+
         -- Direction to move the source
         local direction = event.direction or input_to_direction[event.input_name]
         -- Distance to move the source, defaults to 1
-        local distance = event.distance or 1
+        local distance = (event.distance or 1) * prototype.building_grid_bit_shift
         -- Where we started from in case we have to return it
         local start_pos = Position(event.start_pos or entity.position)
         -- Where we want to go too
@@ -127,14 +128,11 @@ local function move_entity(event)
         -- Target selection box location
         local target_box = Area(entity.selection_box):translate(direction, distance):corners()
 
-        local entity_direction = entity.direction
-        local surface = entity.surface
-
         -- Returns true if the wires can reach
         local function can_wires_reach()
 
             local neighbours = copper_wire_types[entity.type] and entity.neighbours or entity.circuit_connected_entities
-            local target_dist = entity.prototype.max_wire_distance
+            local target_dist = prototype.max_wire_distance
             local corners = {'left_top', 'left_bottom', 'right_top', 'right_bottom'}
 
             for _, wire_type in pairs(neighbours) do
@@ -264,7 +262,7 @@ local function move_entity(event)
             end
 
             if entity.type == 'mining-drill' then
-                local area = target_pos:expand_to_area(game.entity_prototypes[entity.name].mining_drill_radius)
+                local area = target_pos:expand_to_area(prototype.mining_drill_radius)
                 local resource_name = entity.mining_target and entity.mining_target.name or nil
                 local count = entity.surface.count_entities_filtered {area = area, type = 'resource', name = resource_name}
                 if count == 0 then
