@@ -63,9 +63,10 @@ local input_to_direction = {
     ['dolly-move-west'] = defines.direction.west
 }
 
-local oblong_combinators = {
+local oblong_entities = {
     ['arithmetic-combinator'] = true,
-    ['decider-combinator'] = true
+    ['decider-combinator'] = true,
+    ['pump'] = true
 }
 
 local copper_wire_types = {
@@ -275,12 +276,12 @@ local function move_entity(event)
 end
 Event.register({'dolly-move-north', 'dolly-move-east', 'dolly-move-south', 'dolly-move-west'}, move_entity)
 
-local function try_rotate_combinator(event)
+local function try_rotate_oblong_entity(event)
     local player, pdata = Player.get(event.player_index)
     if not player.cursor_stack.valid_for_read and not player.cursor_ghost then
         local entity = get_saved_entity(player, pdata, event.tick)
 
-        if entity and oblong_combinators[entity.name] then
+        if entity and oblong_entities[entity.type] and not is_blacklisted(entity) then
             if player.cheat_mode or player.can_reach_entity(entity) then
                 pdata.dolly = entity
                 local diags = {
@@ -301,7 +302,7 @@ local function try_rotate_combinator(event)
         end
     end
 end
-Event.register('dolly-rotate-rectangle', try_rotate_combinator)
+Event.register('dolly-rotate-rectangle', try_rotate_oblong_entity)
 
 local function rotate_saved_dolly(event)
     local player, pdata = Player.get(event.player_index)
