@@ -7,6 +7,7 @@ local Player = require('__stdlib__/stdlib/event/player').register_events(true)
 local Area = require('__stdlib__/stdlib/area/area')
 local Position = require('__stdlib__/stdlib/area/position')
 local Direction = require('__stdlib__/stdlib/area/direction')
+require('interface')
 
 --[[
 Event table returned with the event
@@ -333,3 +334,4 @@ local function update_blacklist()
     end
 end
 Event.register(Event.core_events.on_configuration_changed, update_blacklist)
+assert(remote.interfaces[script.mod_name]['dolly_moved_entity_id'])
