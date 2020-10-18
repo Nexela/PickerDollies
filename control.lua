@@ -295,7 +295,9 @@ local function rotate_saved_dolly(event)
 end
 Event.register({'dolly-rotate-saved', 'dolly-rotate-saved-reverse'}, rotate_saved_dolly)
 
-local function create_global_blacklist() global.blacklist_names = {['pumpjack'] = true} end
+local function create_global_blacklist()
+    global.blacklist_names = {['pumpjack'] = true}
+end
 Event.register(Event.core_events.on_init, create_global_blacklist)
 
 local function update_blacklist()
