@@ -5,3 +5,30 @@ Hover over entities and use the Picker dolly keybinds to move entities around. E
 ![Dollies in Action](https://github.com/Nexela/PickerAtheneum/raw/master/.web/picker-combinator-dolly.gif)
 
 [![Picker Dollies](http://img.youtube.com/vi/LbBK6wAtMHU/0.jpg)](http://www.youtube.com/watch?v=LbBK6wAtMHU "Picker Dollies Mod Spotlight")
+
+## Dollies Remote API
+
+Whenever a player moves an entity using picker dollies an event is raised. Listening for this event will allow you to update your entities if needed.
+
+In your mods on_load and on_init events add:
+```lua
+if remote.interfaces["PickerDollies"] and remote.interfaces["PickerDollies"]["dolly_moved_entity_id"] then
+    script.on_event(remote.call("PickerDollies", "dolly_moved_entity_id"), your_function_to_update_the_entity)
+end
+```
+
+The dolly moved event returns a table with the following the information:
+```lua
+{
+    player_index = player_index, -- The index of the player who moved the entity
+    moved_entity = entity, -- The entity that was moved
+    start_pos = position -- The position that the entity was moved from
+}
+```
+
+In addition a remote api to disallow moving of an entity is available:
+```lua
+if remote.interfaces["PickerDollies"] and remote.interfaces["PickerDollies"]["add_blacklist_name"] then
+    remote.call("PickerDollies", "add_blacklist_name", "name-of-your-entity")
+end
+```

@@ -1,8 +1,19 @@
 ---------------------------------------------------------------------------------------------------
-Version: 1.1.3
+Version: 1.1.5
 Date: ????
   Changes:
-    - Removed rotate ghost since ghosts can't be removed.
+---------------------------------------------------------------------------------------------------
+Version: 1.1.4
+Date: 2020-10-10
+  Bugfixes:
+    - Make sure to actually require the interface. #10
+---------------------------------------------------------------------------------------------------
+Version: 1.1.3
+Date: 2020-09-22
+  Features:
+    - Oblong pumps can now be rotated.
+  Changes:
+    - Removed rotate ghost since ghosts can't be rotated.
     - Players with cheat_mode enabled can move more things including from different forces.
     - Players with cheat_mode enabled bypass any can_reach checks.
     - Blacklist interface now also writes to log when not silent.
