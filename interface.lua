@@ -8,17 +8,20 @@ end
 
 interface['add_blacklist_name'] = function(entity_name, silent)
     global.blacklist_names = global.blacklist_names or {}
-    if game.entity_prototypes[entity_name] and not global.blacklist_names[entity_name] then
+    local proto = game.entity_prototypes[entity_name]
+    if proto and not global.blacklist_names[entity_name] then
         global.blacklist_names[entity_name] = true
         if not silent then
             game.print('Picker Dollies added ' .. entity_name .. ' to the blacklist.')
             log('Picker Dollies added ' .. entity_name .. ' to the blacklist.')
         end
         return true
-    else
+    elseif proto and global.blacklist_names[entity_name] then
+        -- Always silent if it already exists.
+        return true
+    elseif not proto then
         if not silent then
-            game.print('Picker Dollies could not add ' .. entity_name .. ' to the blacklist.')
-            game.print('Entity name does not exist or is already blacklisted.')
+            game.print('Picker Dollies could not add ' .. entity_name .. ' to the blacklist. Entity does not exist.')
             log('Picker Dollies could not add ' .. entity_name .. ' to the blacklist.')
         end
         return false
