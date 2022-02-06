@@ -201,7 +201,10 @@ local function move_entity(event)
             force = entity_force
         }
 
-        if not player.mod_settings['dolly-ignore-collisions'].value and not (player.can_place_entity(params) and not entity.surface.find_entity('entity-ghost', target_pos)) then
+        if not (settings.global['dolly-allow-ignore-collisions'].value and player.mod_settings['dolly-ignore-collisions'].value)
+            and not (player.can_place_entity(params)
+            and not entity.surface.find_entity('entity-ghost', target_pos))
+            then
             return teleport_and_update(start_pos, false, {'picker-dollies.no-room', entity.localised_name})
         end
 
