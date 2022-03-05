@@ -2,6 +2,7 @@
 Version: 1.1.7
 Date: ????
   Changes:
+    - Add settings to ignore collision checks.
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.6
 Date: 2020-11-28
