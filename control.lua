@@ -124,13 +124,10 @@ local function move_entity(event)
 
         -- Returns true if the wires can reach
         local function can_wires_reach()
-
             local neighbours = copper_wire_types[entity.type] and entity.neighbours or entity.circuit_connected_entities
             for _, wire_type in pairs(neighbours) do
                 for _, neighbour in pairs(wire_type) do
-                    if not entity.can_wires_reach(neighbour) then
-                        return false
-                    end
+                    if not entity.can_wires_reach(neighbour) then return false end
                 end
             end
             return true
@@ -185,8 +182,7 @@ local function move_entity(event)
         -- Teleport the entity out of the way.
         -- API request: can_be_teleported.
         if not entity.teleport(out_of_the_way) then
-            local count = 4
-            while count > 0 do
+            for count = 4, 0, -1 do
                 out_of_the_way = out_of_the_way:add({x = count, y = count})
                 if entity.teleport(out_of_the_way) then
                     break
@@ -194,7 +190,6 @@ local function move_entity(event)
                     local text = {'picker-dollies.cant-be-teleported', entity.localised_name}
                     return flying_text(player, text, entity.position, true)
                 end
-                count = count - 1
             end
         end
 
@@ -213,9 +208,8 @@ local function move_entity(event)
         }
 
         local allow_collisions = settings.global['dolly-allow-ignore-collisions'].value
-        if not (allow_collisions and player.mod_settings['dolly-ignore-collisions'].value)
-            and not (surface.can_place_entity(params) and not surface.find_entity('entity-ghost', target_pos))
-            then
+        if not (allow_collisions and player.mod_settings['dolly-ignore-collisions'].value) and
+            not (surface.can_place_entity(params) and not surface.find_entity('entity-ghost', target_pos)) then
             return teleport_and_update(start_pos, false, {'picker-dollies.no-room', entity.localised_name})
         end
 
