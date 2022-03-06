@@ -183,10 +183,19 @@ local function move_entity(event)
         if entity.get_fluid_count() > 0 then entity.clear_fluid_inside() end
 
         -- Teleport the entity out of the way.
+        -- API request: can_be_teleported.
         if not entity.teleport(out_of_the_way) then
-            -- API request: can_be_teleported, This logic is really too high up the chain!
+            local count = 4
+            while count > 0 do
+                out_of_the_way = out_of_the_way:add({x = count, y = count})
+                if entity.teleport(out_of_the_way) then
+                    break
+                elseif count == 0 then
             local text = {'picker-dollies.cant-be-teleported', entity.localised_name}
             return flying_text(player, text, entity.position, true)
+        end
+                count = count - 1
+            end
         end
 
         pdata.dolly = entity
