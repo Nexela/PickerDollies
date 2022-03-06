@@ -191,36 +191,38 @@ local function move_entity(event)
                 if entity.teleport(out_of_the_way) then
                     break
                 elseif count == 0 then
-            local text = {'picker-dollies.cant-be-teleported', entity.localised_name}
-            return flying_text(player, text, entity.position, true)
-        end
+                    local text = {'picker-dollies.cant-be-teleported', entity.localised_name}
+                    return flying_text(player, text, entity.position, true)
+                end
                 count = count - 1
             end
         end
 
+        -- Entity was teleportable and is out of the way, Check to see if it fits in the new spot
+        entity.direction = entity_direction
         pdata.dolly = entity
         pdata.dolly_tick = event.tick
 
-        entity.direction = entity_direction
-        local ghost_name = entity.name == 'entity-ghost' and entity.ghost_name
         local params = {
-            name = ghost_name or entity.name,
+            name = entity.name == 'entity-ghost' and entity.ghost_name or entity.name,
             position = target_pos,
             direction = entity_direction,
-            force = entity_force
+            force = entity_force,
+            build_check_type = defines.build_check_type.blueprint_ghost,
+            inner_name = entity.name == 'entity-ghost' and entity.ghost_name
         }
 
-        if not (settings.global['dolly-allow-ignore-collisions'].value and player.mod_settings['dolly-ignore-collisions'].value)
-            and not (player.can_place_entity(params)
-            and not entity.surface.find_entity('entity-ghost', target_pos))
+        local allow_collisions = settings.global['dolly-allow-ignore-collisions'].value
+        if not (allow_collisions and player.mod_settings['dolly-ignore-collisions'].value)
+            and not (surface.can_place_entity(params) and not surface.find_entity('entity-ghost', target_pos))
             then
             return teleport_and_update(start_pos, false, {'picker-dollies.no-room', entity.localised_name})
         end
 
+        -- Check if all the wires can reach.
         if entity.circuit_connected_entities then
-            -- Teleport circuit connectables into the final position for reach checking.
             entity.teleport(target_pos)
-            if not can_wires_reach(entity) then
+            if not can_wires_reach() then
                 return teleport_and_update(start_pos, false, {'picker-dollies.wires-maxed'})
             end
 
