@@ -6,6 +6,7 @@ local Player = require('__stdlib__/stdlib/event/player').register_events(true)
 local Area = require('__stdlib__/stdlib/area/area')
 local Position = require('__stdlib__/stdlib/area/position')
 local Direction = require('__stdlib__/stdlib/area/direction')
+local Time = require('__stdlib__/stdlib/utils/defines/time')
 require('interface')
 assert(remote.interfaces[script.mod_name]['dolly_moved_entity_id'])
 
@@ -76,7 +77,7 @@ local function get_saved_entity(player, pdata, tick)
     if selected then
         return selected
     elseif pdata.dolly and pdata.dolly.valid and player.mod_settings['dolly-save-entity'].value then
-        if tick <= (pdata.dolly_tick or 0) + defines.time.second * 5 then
+        if tick <= (pdata.dolly_tick or 0) + Time.second * 5 then
             return pdata.dolly
         else
             pdata.dolly = nil
