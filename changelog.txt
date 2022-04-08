@@ -3,6 +3,8 @@ Version: 1.1.7
 Date: ????
   Changes:
     - Add settings to ignore collision checks.
+  Bugfixes:
+    - Saved dollies don't get unsaved when selection changes to a blacklisted entity. (i.e. moving pole on resource patches)
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.6
 Date: 2020-11-28

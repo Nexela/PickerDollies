@@ -43,7 +43,13 @@ local blacklist_types = {
     ['logistic-robot'] = true,
     ['rocket'] = true,
     ['tile-ghost'] = true,
-    ['item-entity'] = true
+    ['item-entity'] = true,
+    ['straight-rail'] = true,
+    ['curved-rail'] = true,
+    ['locomotive'] = true,
+    ['cargo-wagon'] = true,
+    ['artillery-wagon'] = true,
+    ['fluid-wagon'] = true,
 }
 
 local oblong_entities = {['arithmetic-combinator'] = true, ['decider-combinator'] = true, ['pump'] = true}
@@ -73,17 +79,20 @@ local function is_blacklisted(entity, cheat_mode)
 end
 
 local function get_saved_entity(player, pdata, tick)
-    local selected = player.selected
-    if selected then
-        return selected
-    elseif pdata.dolly and pdata.dolly.valid and player.mod_settings['dolly-save-entity'].value then
-        if tick <= (pdata.dolly_tick or 0) + Time.second * 5 then
-            return pdata.dolly
-        else
+    if pdata.dolly and player.mod_settings['dolly-save-entity'].value then
+        if not pdata.dolly.valid or tick > (pdata.dolly_tick or 0) + Time.second * 5 then
             pdata.dolly = nil
-            return
         end
     end
+
+    local selected = player.selected
+    if selected then
+        if pdata.dolly and blacklist_types[selected.type] then
+            return pdata.dolly
+        end
+        return selected
+    end
+    return pdata.dolly
 end
 
 local function move_entity(event)
