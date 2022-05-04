@@ -1,61 +1,89 @@
+--- Event table returned with the event
+---
+--- In your mods on_load and on_init, create a function to handle the event
+--- ``` lua
+--- local function your_function_to_update_the_entity(event)
+---    -- Do stuff here
+--- end
+---
+--- script.on_init(function()
+---     if remote.interfaces["PickerDollies"] then
+---         script.on_event(remote.call("PickerDollies", "dolly_moved_entity_id"), your_function_to_update_the_entity)
+---         remote.call("PickerDollies", "add_blacklist_name", "my_unteleportable_entity_name")
+---         remote.call("PickerDollies", "add_oblong_name", "my_oblong_entity_name")
+---     end
+--- end)
+---
+--- script.on_load(function()
+---     if remote.interfaces["PickerDollies"] then
+---         script.on_event(remote.call("PickerDollies", "dolly_moved_entity_id"), your_function_to_update_the_entity)
+---     end
+--- end)
+--- ```
+--- If you are using the remote interface for adding/removing entity names make sure to add PickerDollies as an optional dependency.
+--- @class PickerDollies.dolly_moved_event: EventData
+--- @field player_index uint
+--- @field moved_entity LuaEntity
+--- @field start_pos MapPosition
+local event --luacheck: ignore 211/event
+
 local interface = require('__stdlib__/stdlib/scripts/interface')
 local Event = require('__stdlib__/stdlib/event/event')
-local table = require('__stdlib__/stdlib/utils/table')
 
 interface['dolly_moved_entity_id'] = function()
     return Event.generate_event_name('dolly_moved')
 end
 
-interface['add_blacklist_name'] = function(entity_name, silent)
-    global.blacklist_names = global.blacklist_names or {}
+--- @param entity_name string
+--- @return boolean
+interface['add_oblong_name'] = function(entity_name)
     local proto = game.entity_prototypes[entity_name]
-    if proto and not global.blacklist_names[entity_name] then
+    if proto then
+        global.oblong_names[entity_name] = true
+        return true
+    end
+    return false
+end
+
+--- @param entity_name string
+--- @return boolean
+interface['remove_oblong_name'] = function(entity_name)
+    if global.oblong_names[entity_name] then
+        global.oblong_names[entity_name] = nil
+        return true
+    end
+    return false
+end
+
+--- @return {[string]: true}
+interface['get_oblong_names'] = function()
+    return global.oblong_names
+end
+
+--- @param entity_name string
+--- @return boolean
+interface['add_blacklist_name'] = function(entity_name)
+    local proto = game.entity_prototypes[entity_name]
+    if proto then
         global.blacklist_names[entity_name] = true
-        if not silent then
-            game.print('Picker Dollies added ' .. entity_name .. ' to the blacklist.')
-            log('Picker Dollies added ' .. entity_name .. ' to the blacklist.')
-        end
         return true
-    elseif proto and global.blacklist_names[entity_name] then
-        -- Always silent if it already exists.
-        return true
-    elseif not proto then
-        if not silent then
-            game.print('Picker Dollies could not add ' .. entity_name .. ' to the blacklist. Entity does not exist.')
-            log('Picker Dollies could not add ' .. entity_name .. ' to the blacklist.')
-        end
-        return false
     end
+    return false
 end
 
-interface['remove_blacklist_name'] = function(entity_name, silent)
-    global.blacklist_names = global.blacklist_names or {}
-    global.blacklist_names[entity_name] = nil
-    if not silent then
-        game.print('Picker Dollies removed ' .. entity_name .. ' from the blacklist.')
-        log('Picker Dollies removed ' .. entity_name .. ' from the blacklist.')
+--- @param entity_name string
+--- @return boolean
+interface['remove_blacklist_name'] = function(entity_name)
+    if global.blacklist_names[entity_name] then
+        global.blacklist_names[entity_name] = nil
+        return true
     end
-    return true
+    return false
 end
 
-interface['get_blacklist_names'] = function(entity_name, silent)
-    global.blacklist_names = global.blacklist_names or {}
-    if entity_name then
-        local key = global.blacklist_names[entity_name]
-        if not silent then
-            local is = key and ' is ' or ' is not '
-            game.print('Picker Dollies: ' .. entity_name .. is .. 'blacklisted.')
-            log('Picker Dollies: ' .. entity_name .. is .. 'blacklisted.')
-        end
-        return global.blacklist_names[entity_name]
-    else
-        local keys = table.keys(global.blacklist_names)
-        if not silent then
-            game.print('Picker Dollies: blacklisted names = ' .. table.concat(keys, ', '))
-            log('Picker Dollies: blacklisted names = ' .. table.concat(keys, ', '))
-        end
-        return keys
-    end
+--- @return {[string]: true}
+interface['get_blacklist_names'] = function()
+    return global.blacklist_names
 end
 
 remote.add_interface(script.mod_name, interface)

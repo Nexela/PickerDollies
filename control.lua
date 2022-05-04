@@ -1,31 +1,23 @@
 -------------------------------------------------------------------------------
--- [Picker Dolly]--
+-- [Picker Dollies]--
 -------------------------------------------------------------------------------
 local Event = require('__stdlib__/stdlib/event/event').set_protected_mode(true)
-local Player = require('__stdlib__/stdlib/event/player').register_events(true)
 local Area = require('__stdlib__/stdlib/area/area')
 local Position = require('__stdlib__/stdlib/area/position')
 local Direction = require('__stdlib__/stdlib/area/direction')
 local Time = require('__stdlib__/stdlib/utils/defines/time')
+require('__stdlib__/stdlib/event/player').register_events(true)
 require('interface')
 assert(remote.interfaces[script.mod_name]['dolly_moved_entity_id'])
-
---[[ --
--- Event table returned with the event
-    {
-        player_index = player_index, -- The index of the player who moved the entity
-        moved_entity = entity, -- The entity that was moved
-        start_pos = position -- The position that the entity was moved from
-    }
-
--- In your mods on_load and on_init, create an event handler for the dolly_moved_entity_id
--- Adding the event registration in on_load and on_init you do not have to add picker as an optional dependency
-
-if remote.interfaces["PickerDollies"] and remote.interfaces["PickerDollies"]["dolly_moved_entity_id"] then
-    script.on_event(remote.call("PickerDollies", "dolly_moved_entity_id"), your_function_to_update_the_entity)
-end
---]] --
 Event.generate_event_name('dolly_moved')
+
+--- @class PickerDollies.global
+--- @field players {[number]: PickerDollies.pdata}
+global = {}
+
+--- @class PickerDollies.pdata
+--- @field dolly_tick uint
+--- @field dolly LuaEntity|nil
 
 local blacklist_cheat_types = {
     ['character'] = true,
@@ -52,8 +44,6 @@ local blacklist_types = {
     ['fluid-wagon'] = true,
 }
 
-local oblong_entities = {['arithmetic-combinator'] = true, ['decider-combinator'] = true, ['pump'] = true}
-
 local copper_wire_types = {['electric-pole'] = true, ['power-switch'] = true}
 
 local input_to_direction = {
@@ -63,21 +53,29 @@ local input_to_direction = {
     ['dolly-move-west'] = defines.direction.west
 }
 
-local function flying_text(player, text, position, cant_build)
+--- @param player LuaPlayer
+--- @param position MapPosition
+--- @param silent? boolean
+local function flying_text(player, text, position, silent)
     player.create_local_flying_text{text = text, position = position}
-    if cant_build then
+    if not silent then
         player.play_sound{path = 'utility/cannot_build', position = player.position, volume = 1}
-        return false
     end
-    return true
 end
 
+--- @param entity LuaEntity
+--- @param cheat_mode? boolean
+--- @return boolean
 local function is_blacklisted(entity, cheat_mode)
     local listed = blacklist_types[entity.type] or global.blacklist_names[entity.name]
     if cheat_mode then return listed end
     return listed or blacklist_cheat_types[entity.type]
 end
 
+--- @param player LuaPlayer
+--- @param pdata PickerDollies.pdata
+--- @param tick uint
+--- @return LuaEntity|nil
 local function get_saved_entity(player, pdata, tick)
     if pdata.dolly and player.mod_settings['dolly-save-entity'].value then
         if not pdata.dolly.valid or tick > (pdata.dolly_tick or 0) + Time.second * 5 then
@@ -95,112 +93,73 @@ local function get_saved_entity(player, pdata, tick)
     return pdata.dolly
 end
 
+--- Returns true if the wires can reach
+--- @param entity LuaEntity
+--- @return boolean
+local function can_wires_reach(entity)
+    local neighbours = copper_wire_types[entity.type] and entity.neighbours or entity.circuit_connected_entities
+    for _, wire_type in pairs(neighbours) do
+        for _, neighbour in pairs(wire_type) do
+            if not entity.can_wires_reach(neighbour) then return false end
+        end
+    end
+    return true
+end
+
+--- @param event PickerDollies.CustomInputEvent
 local function move_entity(event)
-    local player, pdata = Player.get(event.player_index)
+    --- @class PickerDollies.CustomInputEvent: CustomInputEvent
+    --- @field direction defines.direction
+    --- @field distance number
+    --- @field tiles_away uint
+    --- @field start_pos MapPosition
+
+    local player, pdata = game.get_player(event.player_index), global.players[event.player_index]
     local entity = get_saved_entity(player, pdata, event.tick)
 
     if entity then
         local cheat_mode = player.cheat_mode
 
         if not (cheat_mode or player.can_reach_entity(entity)) then
-            return flying_text(player, {'cant-reach'}, entity.position, true)
+            return flying_text(player, {'cant-reach'}, entity.position)
         end
 
         if is_blacklisted(entity, cheat_mode) then
             local text = {'picker-dollies.cant-be-teleported', entity.localised_name}
-            return flying_text(player, text, entity.position, true)
+            return flying_text(player, text, entity.position)
         end
 
         local entity_force = entity.force
         if not (cheat_mode or entity_force == player.force) then
             local text = {'picker-dollies.wrong-force', entity.localised_name}
-            return flying_text(player, text, entity.position, true)
+            return flying_text(player, text, entity.position)
         end
 
         local prototype = entity.prototype
         local surface = entity.surface
         local entity_direction = entity.direction
-
-        -- Direction to move the source
-        local direction = event.direction or input_to_direction[event.input_name]
-        -- Distance to move the source, defaults to 1
-        local distance = (event.distance or 1) * prototype.building_grid_bit_shift
-        -- Where we started from in case we have to return it
-        local start_pos = Position(event.start_pos or entity.position)
-        -- Where we want to go too
-        local target_pos = start_pos:translate(direction, distance)
-        -- Target selection box location
-        local target_box = Area(entity.selection_box):translate(direction, distance)
-
-        -- Returns true if the wires can reach
-        local function can_wires_reach()
-            local neighbours = copper_wire_types[entity.type] and entity.neighbours or entity.circuit_connected_entities
-            for _, wire_type in pairs(neighbours) do
-                for _, neighbour in pairs(wire_type) do
-                    if not entity.can_wires_reach(neighbour) then return false end
-                end
-            end
-            return true
-        end
-
-        -- Save fluid boxes here
-        local fluidbox = {}
-        for i = 1, #entity.fluidbox do fluidbox[i] = entity.fluidbox[i] end
-
+        local direction = event.direction or input_to_direction[event.input_name] -- Direction to move the source
+        local distance = (event.distance or 1) * prototype.building_grid_bit_shift -- Distance to move the source, defaults to 1
+        local start_pos = Position(event.start_pos or entity.position) -- Where we started from in case we have to return it
+        local target_pos = start_pos:translate(direction, distance) -- Where we want to go too
+        local target_box = Area(entity.selection_box):translate(direction, distance) -- Target selection box location
         local out_of_the_way = start_pos:translate(Direction.opposite_direction(direction), event.tiles_away or 20)
-        local updateable_entities = surface.find_entities_filtered{area = target_box:expand(32), force = entity_force}
-        local items_on_ground = surface.find_entities_filtered{type = 'item-entity', area = target_box}
-        local proxy = surface.find_entities_filtered{
-            name = 'item-request-proxy',
-            position = start_pos,
-            force = entity_force
-        }[1]
+        local final_teleportation = false
 
-        -- Update everything after teleporting
-        local function teleport_and_update(pos, raise, reason)
-            if entity.last_user then entity.last_user = player end
-
-            -- Final teleport into position.
-            entity.teleport(pos)
-
-            -- Insert fluid back here.
-            for i = 1, #fluidbox do entity.fluidbox[i] = fluidbox[i] end
-
-            -- Mine or move out of the way any items on the ground
-            for _, item in pairs(items_on_ground) do
-                if item.valid and not player.mine_entity(item) then
-                    item.teleport(surface.find_non_colliding_position('item-on-ground', entity.position, 0, .20))
-                end
-            end
-
-            -- Move the proxy to the correct position
-            if proxy and proxy.valid then proxy.teleport(entity.position) end
-
-            -- Update all connections
-            for _, updateable in pairs(updateable_entities) do updateable.update_connections() end
-
-            if not raise then return flying_text(player, reason, pos, true) end
-
-            local event_data = {player_index = player.index, moved_entity = entity, start_pos = start_pos}
-            script.raise_event(Event.generate_event_name('dolly_moved'), event_data)
-            return raise
-        end
-
-        -- Remove the fluids because geez
+        -- Store and clear fluids
+        local fluidbox = {}  ---@type LuaFluidBox[]
+        for i = 1, #entity.fluidbox do fluidbox[i] = entity.fluidbox[i] end
         if entity.get_fluid_count() > 0 then entity.clear_fluid_inside() end
 
-        -- Teleport the entity out of the way.
+        -- Try retries times to teleport the entity out of the way.
         -- API request: can_be_teleported.
-        if not entity.teleport(out_of_the_way) then
-            for count = 4, 0, -1 do
-                out_of_the_way = out_of_the_way:add({x = count, y = count})
-                if entity.teleport(out_of_the_way) then
-                    break
-                elseif count == 0 then
-                    local text = {'picker-dollies.cant-be-teleported', entity.localised_name}
-                    return flying_text(player, text, entity.position, true)
-                end
+        local retries = 5
+        while not entity.teleport(out_of_the_way) do
+            if retries <= 1 then
+                return flying_text(player, {'picker-dollies.cant-be-teleported', entity.localised_name}, entity.position)
             end
+            retries = retries - 1
+            out_of_the_way = out_of_the_way:add({x = retries, y = retries})
         end
 
         -- Entity was teleportable and is out of the way, Check to see if it fits in the new spot
@@ -208,7 +167,47 @@ local function move_entity(event)
         pdata.dolly = entity
         pdata.dolly_tick = event.tick
 
-        local params = {
+        --- Update everything after teleporting
+        --- @param pos MapPosition
+        --- @param raise boolean Teleportation was successfull raise event
+        --- @param reason? LocalisedString
+        local function teleport_and_update(pos, raise, reason)
+            --- @cast start_pos MapPosition
+            if entity.last_user then entity.last_user = player end
+
+            -- Final teleport into position. Ignore final_teloportation if we are not raising
+            if not (raise and final_teleportation) then entity.teleport(pos) end
+
+            -- Insert fluid back here.
+            for i = 1, #fluidbox do entity.fluidbox[i] = fluidbox[i] end
+
+            if not raise then return flying_text(player, reason, pos) end
+
+            -- At this point the entity should be able to be teleported into a new position.
+            -- Hoover up items, Move the proxy, Update any connections, Raise the dolly_moved event.
+
+            -- Mine or move out of the way any items on the ground
+            local items_on_ground = surface.find_entities_filtered{type = 'item-entity', area = target_box}
+            for _, item in pairs(items_on_ground) do
+                if item.valid and not player.mine_entity(item) then
+                    item.teleport(surface.find_non_colliding_position('item-on-ground', entity.position, 0, .20))
+                end
+            end
+
+            -- Move the proxy to the correct position
+            local proxy = surface.find_entity('item-request-proxy', start_pos)
+            if proxy and proxy.valid then proxy.teleport(entity.position) end
+
+            -- Update all connections
+            local updateable_entities = surface.find_entities_filtered{area = target_box:expand(32), force = entity_force}
+            for _, updateable in pairs(updateable_entities) do updateable.update_connections() end
+
+            --- @type PickerDollies.dolly_moved_event
+            local event_data = {player_index = player.index, moved_entity = entity, start_pos = start_pos}
+            script.raise_event(Event.generate_event_name('dolly_moved'), event_data)
+        end
+
+        local can_place_params = {
             name = entity.name == 'entity-ghost' and entity.ghost_name or entity.name,
             position = target_pos,
             direction = entity_direction,
@@ -219,42 +218,41 @@ local function move_entity(event)
 
         local allow_collisions = settings.global['dolly-allow-ignore-collisions'].value
         if not (allow_collisions and player.mod_settings['dolly-ignore-collisions'].value) and
-            not (surface.can_place_entity(params) and not surface.find_entity('entity-ghost', target_pos)) then
+            not (surface.can_place_entity(can_place_params) and not surface.find_entity('entity-ghost', target_pos)) then
             return teleport_and_update(start_pos, false, {'picker-dollies.no-room', entity.localised_name})
         end
 
         -- Check if all the wires can reach.
         if entity.circuit_connected_entities then
-            entity.teleport(target_pos)
-            if not can_wires_reach() then
-                return teleport_and_update(start_pos, false, {'picker-dollies.wires-maxed'})
-            end
-
-            if entity.type == 'mining-drill' then
-                local area = target_pos:expand_to_area(prototype.mining_drill_radius)
-                local resource_name = entity.mining_target and entity.mining_target.name or nil
-                local count = entity.surface.count_entities_filtered{
-                    area = area,
-                    type = 'resource',
-                    name = resource_name
-                }
-                if count == 0 then
-                    return teleport_and_update(start_pos, false,
-                        {'picker-dollies.off-ore-patch', entity.localised_name, resource_name})
-                end
-            end
+            if not final_teleportation then entity.teleport(target_pos) end
+            if not can_wires_reach(entity) then return teleport_and_update(start_pos, false, {'picker-dollies.wires-maxed'}) end
+            final_teleportation = true
         end
+
+        if entity.type == 'mining-drill' then
+            if not final_teleportation then entity.teleport(target_pos) end
+            local area = target_pos:expand_to_area(prototype.mining_drill_radius)
+            local resource_name = entity.mining_target and entity.mining_target.name or nil
+            local count = entity.surface.count_entities_filtered{ area = area, type = 'resource', name = resource_name }
+            if count == 0 then
+                return teleport_and_update(start_pos, false, {'picker-dollies.off-ore-patch', entity.localised_name, resource_name})
+            end
+            final_teleportation = true
+        end
+
         return teleport_and_update(target_pos, true)
     end
 end
 Event.register({'dolly-move-north', 'dolly-move-east', 'dolly-move-south', 'dolly-move-west'}, move_entity)
 
+--- @param event CustomInputEvent
 local function try_rotate_oblong_entity(event)
-    local player, pdata = Player.get(event.player_index)
+    local player, pdata = game.get_player(event.player_index), global.players[event.player_index]
     if player.cursor_stack.valid_for_read or player.cursor_ghost then return end
 
     local entity = get_saved_entity(player, pdata, event.tick)
-    if not (entity and oblong_entities[entity.type] and not is_blacklisted(entity)) then return end
+    if not entity then return end
+    if not (global.oblong_names[entity.name] and not is_blacklisted(entity)) then return end
 
     if player.cheat_mode or player.can_reach_entity(entity) then
         pdata.dolly = entity
@@ -274,8 +272,9 @@ local function try_rotate_oblong_entity(event)
 end
 Event.register('dolly-rotate-rectangle', try_rotate_oblong_entity)
 
+--- @param event CustomInputEvent
 local function rotate_saved_dolly(event)
-    local player, pdata = Player.get(event.player_index)
+    local player, pdata = game.get_player(event.player_index), global.players[event.player_index]
     if player.cursor_stack.valid_for_read or player.cursor_ghost or player.selected then return end
 
     local entity = get_saved_entity(player, pdata, event.tick)
@@ -286,15 +285,21 @@ local function rotate_saved_dolly(event)
 end
 Event.register({'dolly-rotate-saved', 'dolly-rotate-saved-reverse'}, rotate_saved_dolly)
 
-local function create_global_blacklist()
+local function on_init()
     global.blacklist_names = {['pumpjack'] = true}
+    global.oblong_names = {['arithmetic-combinator'] = true, ['decider-combinator'] = true, ['pump'] = true}
 end
-Event.register(Event.core_events.on_init, create_global_blacklist)
+Event.register(Event.core_events.on_init, on_init)
 
-local function update_blacklist()
-    global.blacklist_names = global.blacklist_names or {}
+local function on_configuration_changed()
+    global.blacklist_names = global.blacklist_names or {['pumpjack'] = true}
     for name in pairs(global.blacklist_names) do
         if not game.entity_prototypes[name] then global.blacklist_names[name] = nil end
     end
+
+    global.oblong_names = global.oblong_names or {['arithmetic-combinator'] = true, ['decider-combinator'] = true, ['pump'] = true}
+    for name in pairs(global.oblong_names) do
+        if not game.entity_prototypes[name] then global.oblong_names[name] = nil end
+    end
 end
-Event.register(Event.core_events.on_configuration_changed, update_blacklist)
+Event.register(Event.core_events.on_configuration_changed, on_configuration_changed)
