@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.8
-Date: ????
+Date: 2022-05-04
   Features:
     - Added remote interface add_oblong_name->boolean, remove_oblong_name->boolean for registering and removing oblong entities.
     - Added remote interface get_oblong_names to return a dictionary = true mapping of oblong names.
