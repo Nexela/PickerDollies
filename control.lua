@@ -79,16 +79,25 @@ local function is_blacklisted(entity, cheat_mode)
     return listed or blacklist_cheat_types[entity.type]
 end
 
+--- @param pdata PickerDollies.pdata
+--- @param entity LuaEntity
+--- @param tick uint
+--- @param save_time uint
+local function save_entity(pdata, entity, tick, save_time)
+    if save_time == 0 then return end
+    pdata.dolly = entity
+    pdata.dolly_tick = tick
+end
+
 --- @param player LuaPlayer
 --- @param pdata PickerDollies.pdata
 --- @param tick uint
+--- @param save_time uint
 --- @return LuaEntity|nil
-local function get_saved_entity(player, pdata, tick)
-    if pdata.dolly and player.mod_settings['dolly-save-entity'].value then
-        if not pdata.dolly.valid or tick > (pdata.dolly_tick or 0) + Time.second * 5 then
-            pdata.dolly = nil
-        end
-    end
+local function get_saved_entity(player, pdata, tick, save_time)
+    if save_time == 0 then return player.selected end
+
+    if pdata.dolly and (not pdata.dolly.valid or tick > (pdata.dolly_tick + Time.second * save_time)) then pdata.dolly = nil end
 
     local selected = player.selected
     if selected then
@@ -122,9 +131,11 @@ local function move_entity(event)
     --- @field start_pos MapPosition
     --- @field start_direction defines.direction|nil
     --- @field target_direction defines.direction|nil
+    --- @field save_time uint|nil
 
     local player, pdata = game.get_player(event.player_index), global.players[event.player_index]
-    local entity = get_saved_entity(player, pdata, event.tick)
+    local save_time = event.save_time or player.mod_settings['dolly-save-entity'].value
+    local entity = get_saved_entity(player, pdata, event.tick, save_time)
 
     if entity then
         local cheat_mode = player.cheat_mode
@@ -172,9 +183,8 @@ local function move_entity(event)
         end
 
         -- Entity was teleportable and is out of the way, Check to see if it fits in the new spot
-        entity.direction = target_direction  -- Rotation for oblong
-        pdata.dolly = entity
-        pdata.dolly_tick = event.tick
+        if target_direction then entity.direction = target_direction end  -- Rotation for oblong
+        save_entity(pdata, entity, event.tick, save_time)
 
         --- Update everything after teleporting
         --- @param pos MapPosition
@@ -263,13 +273,14 @@ local function try_rotate_oblong_entity(event)
     local player, pdata = game.get_player(event.player_index), global.players[event.player_index]
     if player.cursor_stack.valid_for_read or player.cursor_ghost then return end
 
-    local entity = get_saved_entity(player, pdata, event.tick)
+    local save_time = player.mod_settings['dolly-save-entity'].value
+    local entity = get_saved_entity(player, pdata, event.tick, save_time)
     if not entity then return end
     if not (global.oblong_names[entity.name] and not is_blacklisted(entity)) then return end
     if not (player.cheat_mode or player.can_reach_entity(entity)) then return end
 
-    pdata.dolly = entity
-    pdata.dolly_tick = event.tick
+    save_entity(pdata, entity, event.tick, save_time)
+    event.save_time = save_time
     event.start_pos = entity.position
     event.start_direction = entity.direction -- store the direction for later failed teleportation will need to restore it.
     event.target_direction = Direction.next_direction(entity.direction)
@@ -284,10 +295,10 @@ local function rotate_saved_dolly(event)
     local player, pdata = game.get_player(event.player_index), global.players[event.player_index]
     if player.cursor_stack.valid_for_read or player.cursor_ghost or player.selected then return end
 
-    local entity = get_saved_entity(player, pdata, event.tick)
+    local save_time = player.mod_settings['dolly-save-entity'].value
+    local entity = get_saved_entity(player, pdata, event.tick, save_time)
     if entity and entity.supports_direction then
-        pdata.dolly = entity
-        pdata.dolly_tick = event.tick
+        save_entity(pdata, entity, event.tick, save_time)
         entity.rotate{reverse = event.input_name == 'dolly-rotate-saved-reverse', by_player = player}
     end
 end
