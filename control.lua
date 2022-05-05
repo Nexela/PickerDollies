@@ -217,6 +217,7 @@ local function move_entity(event)
             --- @type PickerDollies.dolly_moved_event
             local event_data = {player_index = player.index, moved_entity = entity, start_pos = start_pos}
             script.raise_event(Event.generate_event_name('dolly_moved'), event_data)
+            player.play_sound{path = 'utility/rotated_medium'}
         end
 
         local can_place_params = {

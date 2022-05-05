@@ -3,6 +3,7 @@ Version: 1.2.0
 Date: ????
   Changes:
     - Correctly increase minor version because of api changes and additions.
+    - Added sound when moving entities.
   Bugfixes:
     - Fix oblong rotation.
     - Fix oblong failed rotation.
