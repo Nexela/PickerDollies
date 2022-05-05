@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 1.2.0
-Date: ????
+Date: 2022-05-05
   Changes:
     - Correctly increase minor version because of api changes and additions.
     - Added sound when moving entities.
