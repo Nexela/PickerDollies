@@ -12,7 +12,7 @@ assert(remote.interfaces[script.mod_name]['dolly_moved_entity_id'])
 Event.generate_event_name('dolly_moved')
 
 --- @class PickerDollies.global
---- @field players {[number]: PickerDollies.pdata}
+--- @field players {[uint]: PickerDollies.pdata}
 global = {}
 
 --- @class PickerDollies.pdata
@@ -51,6 +51,13 @@ local input_to_direction = {
     ['dolly-move-east'] = defines.direction.east,
     ['dolly-move-south'] = defines.direction.south,
     ['dolly-move-west'] = defines.direction.west
+}
+
+local oblong_diags = {
+    [defines.direction.north] = defines.direction.northeast,
+    [defines.direction.south] = defines.direction.northeast,
+    [defines.direction.west] = defines.direction.southwest,
+    [defines.direction.east] = defines.direction.southwest
 }
 
 --- @param player LuaPlayer
@@ -113,6 +120,8 @@ local function move_entity(event)
     --- @field distance number
     --- @field tiles_away uint
     --- @field start_pos MapPosition
+    --- @field start_direction defines.direction|nil
+    --- @field target_direction defines.direction|nil
 
     local player, pdata = game.get_player(event.player_index), global.players[event.player_index]
     local entity = get_saved_entity(player, pdata, event.tick)
@@ -137,14 +146,14 @@ local function move_entity(event)
 
         local prototype = entity.prototype
         local surface = entity.surface
-        local entity_direction = entity.direction
         local direction = event.direction or input_to_direction[event.input_name] -- Direction to move the source
         local distance = (event.distance or 1) * prototype.building_grid_bit_shift -- Distance to move the source, defaults to 1
         local start_pos = Position(event.start_pos or entity.position) -- Where we started from in case we have to return it
+        local target_direction = event.target_direction or entity.direction
         local target_pos = start_pos:translate(direction, distance) -- Where we want to go too
         local target_box = Area(entity.selection_box):translate(direction, distance) -- Target selection box location
         local out_of_the_way = start_pos:translate(Direction.opposite_direction(direction), event.tiles_away or 20)
-        local final_teleportation = false
+        local final_teleportation = false -- Handling teleportion after an entity has been moved into place and checked again
 
         -- Store and clear fluids
         local fluidbox = {}  ---@type LuaFluidBox[]
@@ -163,7 +172,7 @@ local function move_entity(event)
         end
 
         -- Entity was teleportable and is out of the way, Check to see if it fits in the new spot
-        entity.direction = entity_direction
+        entity.direction = target_direction  -- Rotation for oblong
         pdata.dolly = entity
         pdata.dolly_tick = event.tick
 
@@ -176,7 +185,10 @@ local function move_entity(event)
             if entity.last_user then entity.last_user = player end
 
             -- Final teleport into position. Ignore final_teloportation if we are not raising
-            if not (raise and final_teleportation) then entity.teleport(pos) end
+            if not (raise and final_teleportation) then
+                if event.start_direction then entity.direction = event.start_direction end
+                entity.teleport(pos)
+            end
 
             -- Insert fluid back here.
             for i = 1, #fluidbox do entity.fluidbox[i] = fluidbox[i] end
@@ -210,7 +222,7 @@ local function move_entity(event)
         local can_place_params = {
             name = entity.name == 'entity-ghost' and entity.ghost_name or entity.name,
             position = target_pos,
-            direction = entity_direction,
+            direction = target_direction,
             force = entity_force,
             build_check_type = defines.build_check_type.blueprint_ghost,
             inner_name = entity.name == 'entity-ghost' and entity.ghost_name
@@ -225,19 +237,19 @@ local function move_entity(event)
         -- Check if all the wires can reach.
         if entity.circuit_connected_entities then
             if not final_teleportation then entity.teleport(target_pos) end
-            if not can_wires_reach(entity) then return teleport_and_update(start_pos, false, {'picker-dollies.wires-maxed'}) end
             final_teleportation = true
+            if not can_wires_reach(entity) then return teleport_and_update(start_pos, false, {'picker-dollies.wires-maxed'}) end
         end
 
         if entity.type == 'mining-drill' then
             if not final_teleportation then entity.teleport(target_pos) end
+            final_teleportation = true
             local area = target_pos:expand_to_area(prototype.mining_drill_radius)
             local resource_name = entity.mining_target and entity.mining_target.name or nil
             local count = entity.surface.count_entities_filtered{ area = area, type = 'resource', name = resource_name }
             if count == 0 then
                 return teleport_and_update(start_pos, false, {'picker-dollies.off-ore-patch', entity.localised_name, resource_name})
             end
-            final_teleportation = true
         end
 
         return teleport_and_update(target_pos, true)
@@ -253,22 +265,16 @@ local function try_rotate_oblong_entity(event)
     local entity = get_saved_entity(player, pdata, event.tick)
     if not entity then return end
     if not (global.oblong_names[entity.name] and not is_blacklisted(entity)) then return end
+    if not (player.cheat_mode or player.can_reach_entity(entity)) then return end
 
-    if player.cheat_mode or player.can_reach_entity(entity) then
-        pdata.dolly = entity
-        local diags = {
-            [defines.direction.north] = defines.direction.northeast,
-            [defines.direction.south] = defines.direction.northeast,
-            [defines.direction.west] = defines.direction.southwest,
-            [defines.direction.east] = defines.direction.southwest
-        }
-        event.start_pos = entity.position
-        event.start_direction = entity.direction
-        event.distance = .5
-        entity.direction = Direction.next_direction(entity.direction)
-        event.direction = diags[entity.direction]
-        if not move_entity(event) then entity.direction = event.start_direction end
-    end
+    pdata.dolly = entity
+    pdata.dolly_tick = event.tick
+    event.start_pos = entity.position
+    event.start_direction = entity.direction -- store the direction for later failed teleportation will need to restore it.
+    event.target_direction = Direction.next_direction(entity.direction)
+    event.distance = .5
+    event.direction = oblong_diags[event.target_direction] -- Set the translation direction to a diagonal.
+    move_entity(event)
 end
 Event.register('dolly-rotate-rectangle', try_rotate_oblong_entity)
 
@@ -280,6 +286,7 @@ local function rotate_saved_dolly(event)
     local entity = get_saved_entity(player, pdata, event.tick)
     if entity and entity.supports_direction then
         pdata.dolly = entity
+        pdata.dolly_tick = event.tick
         entity.rotate{reverse = event.input_name == 'dolly-rotate-saved-reverse', by_player = player}
     end
 end

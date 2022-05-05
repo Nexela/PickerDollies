@@ -1,7 +1,11 @@
 ---------------------------------------------------------------------------------------------------
-Version: 1.1.9
+Version: 1.2.0
 Date: ????
   Changes:
+    - Correctly increase minor version because of api changes and additions.
+  Bugfixes:
+    - Fix oblong rotation.
+    - Fix oblong failed rotation.
 ---------------------------------------------------------------------------------------------------
 Version: 1.1.8
 Date: 2022-05-04
