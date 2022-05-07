@@ -13,7 +13,10 @@ Event.generate_event_name('dolly_moved')
 
 --- @class PickerDollies.global
 --- @field players {[uint]: PickerDollies.pdata}
-global = {}
+global = {
+    blacklist_names = {['pumpjack'] = true},
+    oblong_names = {['arithmetic-combinator'] = true, ['decider-combinator'] = true, ['pump'] = true}
+}
 
 --- @class PickerDollies.pdata
 --- @field dolly_tick uint
@@ -305,8 +308,8 @@ end
 Event.register({'dolly-rotate-saved', 'dolly-rotate-saved-reverse'}, rotate_saved_dolly)
 
 local function on_init()
-    global.blacklist_names = {['pumpjack'] = true}
-    global.oblong_names = {['arithmetic-combinator'] = true, ['decider-combinator'] = true, ['pump'] = true}
+    global.blacklist_names = global.blacklist_names
+    global.oblong_names = global.oblong_names
 end
 Event.register(Event.core_events.on_init, on_init)
 
