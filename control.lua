@@ -125,9 +125,9 @@ local function can_wires_reach(entity)
     return true
 end
 
---- @param event PickerDollies.CustomInputEvent
+--- @param event EventData.PickerDollies.CustomInputEvent
 local function move_entity(event)
-    --- @class PickerDollies.CustomInputEvent: CustomInputEvent
+    --- @class EventData.PickerDollies.CustomInputEvent: EventData.CustomInputEvent
     --- @field direction defines.direction
     --- @field distance number
     --- @field tiles_away uint
@@ -137,7 +137,7 @@ local function move_entity(event)
     --- @field save_time uint|nil
 
     local player, pdata = game.get_player(event.player_index), global.players[event.player_index]
-    local save_time = event.save_time or player.mod_settings['dolly-save-entity'].value
+    local save_time = event.save_time or player.mod_settings['dolly-save-entity'].value --[[@as uint]]
     local entity = get_saved_entity(player, pdata, event.tick, save_time)
 
     if entity then
@@ -170,7 +170,7 @@ local function move_entity(event)
         local final_teleportation = false -- Handling teleportion after an entity has been moved into place and checked again
 
         -- Store and clear fluids
-        local fluidbox = {}  ---@type LuaFluidBox[]
+        local fluidbox = {} ---@type Fluid
         for i = 1, #entity.fluidbox do fluidbox[i] = entity.fluidbox[i] end
         if entity.get_fluid_count() > 0 then entity.clear_fluid_inside() end
 
@@ -194,12 +194,13 @@ local function move_entity(event)
         --- @param raise boolean Teleportation was successfull raise event
         --- @param reason? LocalisedString
         local function teleport_and_update(pos, raise, reason)
-            --- @cast start_pos MapPosition
+            -- - @cast start_pos MapPosition
             if entity.last_user then entity.last_user = player end
 
             -- Final teleport into position. Ignore final_teloportation if we are not raising
             if not (raise and final_teleportation) then
-                if event.start_direction then entity.direction = event.start_direction end
+                if event.start_direction then
+                    entity.direction = event.start_direction--[[@as defines.direction]] end
                 entity.teleport(pos)
             end
 
@@ -271,22 +272,23 @@ local function move_entity(event)
 end
 Event.register({'dolly-move-north', 'dolly-move-east', 'dolly-move-south', 'dolly-move-west'}, move_entity)
 
---- @param event CustomInputEvent
+--- @param event EventData.CustomInputEvent
 local function try_rotate_oblong_entity(event)
     local player, pdata = game.get_player(event.player_index), global.players[event.player_index]
     if player.cursor_stack.valid_for_read or player.cursor_ghost then return end
 
-    local save_time = player.mod_settings['dolly-save-entity'].value
+    local save_time = player.mod_settings['dolly-save-entity'].value --[[@as uint]]
     local entity = get_saved_entity(player, pdata, event.tick, save_time)
     if not entity then return end
     if not (global.oblong_names[entity.name] and not is_blacklisted(entity)) then return end
     if not (player.cheat_mode or player.can_reach_entity(entity)) then return end
 
+    ---@cast event EventData.PickerDollies.CustomInputEvent
     save_entity(pdata, entity, event.tick, save_time)
     event.save_time = save_time
     event.start_pos = entity.position
     event.start_direction = entity.direction -- store the direction for later failed teleportation will need to restore it.
-    event.target_direction = Direction.next_direction(entity.direction)
+    event.target_direction = Direction.next_direction(entity.direction) --[[@as defines.direction]]
     event.distance = .5
     event.direction = oblong_diags[event.target_direction] -- Set the translation direction to a diagonal.
     move_entity(event)
@@ -298,7 +300,7 @@ local function rotate_saved_dolly(event)
     local player, pdata = game.get_player(event.player_index), global.players[event.player_index]
     if player.cursor_stack.valid_for_read or player.cursor_ghost or player.selected then return end
 
-    local save_time = player.mod_settings['dolly-save-entity'].value
+    local save_time = player.mod_settings['dolly-save-entity'].value --[[@as uint]]
     local entity = get_saved_entity(player, pdata, event.tick, save_time)
     if entity and entity.supports_direction then
         save_entity(pdata, entity, event.tick, save_time)
