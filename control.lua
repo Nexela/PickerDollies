@@ -156,7 +156,7 @@ local function move_entity(event)
         if entity.get_fluid_count() > 0 then entity.clear_fluid_inside() end
 
         -- Try retries times to teleport the entity out of the way.
-        -- API request: can_be_teleported.
+        ---@api can_be_teleported
         local retries = 5
         while not entity.teleport(out_of_the_way) do
             if retries <= 1 then
@@ -271,7 +271,7 @@ local function try_rotate_oblong_entity(event)
     event.save_time = save_time
     event.start_pos = entity.position
     event.start_direction = entity.direction -- store the direction for later failed teleportation will need to restore it.
-    event.target_direction = Direction.next_direction(entity.direction) --[[@as defines.direction]]
+    event.target_direction = Direction.next_direction(entity.direction)
     event.distance = .5
     event.direction = oblong_diags[event.target_direction] -- Set the translation direction to a diagonal.
     move_entity(event)
