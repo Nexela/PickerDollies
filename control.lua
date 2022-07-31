@@ -117,7 +117,7 @@ end
 
 --- @param event EventData.PickerDollies.CustomInputEvent
 local function move_entity(event)
-    local player, pdata = game.get_player(event.player_index), global.players[event.player_index]
+    local player, pdata = game.get_player(event.player_index), global.players[event.player_index] ---@cast player -?
     local save_time = event.save_time or player.mod_settings["dolly-save-entity"].value --[[@as uint]]
     local entity = get_saved_entity(player, pdata, event.tick, save_time)
 
@@ -196,9 +196,11 @@ local function move_entity(event)
 
             -- Mine or move out of the way any items on the ground
             local items_on_ground = surface.find_entities_filtered { type = "item-entity", area = target_box }
-            for _, item in pairs(items_on_ground) do
-                if item.valid and not player.mine_entity(item) then
-                    item.teleport(surface.find_non_colliding_position("item-on-ground", entity.position, 0, .20))
+            for _, item_entity in pairs(items_on_ground) do
+                if item_entity.valid and not player.mine_entity(item_entity) then
+                    local item_pos = item_entity.position
+                    local valid_pos = surface.find_non_colliding_position("item-on-ground", item_pos, 0, .20) or item_pos
+                    item_entity.teleport(item_pos)
                 end
             end
 
@@ -252,12 +254,12 @@ local function move_entity(event)
         return teleport_and_update(target_pos, true)
     end
 end
-
 Event.register({ "dolly-move-north", "dolly-move-east", "dolly-move-south", "dolly-move-west" }, move_entity)
 
 --- @param event EventData.CustomInputEvent
 local function try_rotate_oblong_entity(event)
     local player, pdata = game.get_player(event.player_index), global.players[event.player_index]
+    ---@cast player -?
     if player.cursor_stack.valid_for_read or player.cursor_ghost then return end
 
     local save_time = player.mod_settings["dolly-save-entity"].value --[[@as uint]]
@@ -271,17 +273,16 @@ local function try_rotate_oblong_entity(event)
     event.save_time = save_time
     event.start_pos = entity.position
     event.start_direction = entity.direction -- store the direction for later failed teleportation will need to restore it.
-    event.target_direction = Direction.next_direction(entity.direction)
+    event.target_direction = Direction.next_direction(entity.direction) --[[@as defines.direction]]
     event.distance = .5
     event.direction = oblong_diags[event.target_direction] -- Set the translation direction to a diagonal.
     move_entity(event)
 end
-
 Event.register("dolly-rotate-rectangle", try_rotate_oblong_entity)
 
 --- @param event CustomInputEvent
 local function rotate_saved_dolly(event)
-    local player, pdata = game.get_player(event.player_index), global.players[event.player_index]
+    local player, pdata = game.get_player(event.player_index), global.players[event.player_index] ---@cast player -?
     if player.cursor_stack.valid_for_read or player.cursor_ghost or player.selected then return end
 
     local save_time = player.mod_settings["dolly-save-entity"].value --[[@as uint]]
@@ -291,7 +292,6 @@ local function rotate_saved_dolly(event)
         entity.rotate { reverse = event.input_name == "dolly-rotate-saved-reverse", by_player = player }
     end
 end
-
 Event.register({ "dolly-rotate-saved", "dolly-rotate-saved-reverse" }, rotate_saved_dolly)
 
 local function init_blacklist_names()
@@ -307,7 +307,6 @@ local function on_init()
     global.blacklist_names = init_blacklist_names()
     global.oblong_names = init_oblong_names()
 end
-
 Event.register(Event.core_events.on_init, on_init)
 
 local function on_configuration_changed()
@@ -323,7 +322,6 @@ local function on_configuration_changed()
         if not game.entity_prototypes[name] then global.oblong_names[name] = nil end
     end
 end
-
 Event.register(Event.core_events.on_configuration_changed, on_configuration_changed)
 
 --- @class PickerDollies.global
