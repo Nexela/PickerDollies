@@ -16,7 +16,7 @@ local blacklist_cheat_types = {
     ["unit"]               = true,
     ["unit-spawner"]       = true,
     ["car"]                = true,
-    ["spidertron-vehicle"] = true
+    ["spider-vehicle"]     = true
 }
 
 local blacklist_types = {
