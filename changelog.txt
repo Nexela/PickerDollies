@@ -2,7 +2,7 @@
 Version: 1.2.2
 Date: ????
   Bugfixes:
-    - Correctly blacklist spider-vechicle type when not in cheat mode.  
+    - Correctly blacklist spider-vechicle type when not in cheat mode. #18
 ---------------------------------------------------------------------------------------------------
 Version: 1.2.1
 Date: 2022-05-07
