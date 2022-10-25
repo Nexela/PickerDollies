@@ -282,6 +282,7 @@ Event.register("dolly-rotate-rectangle", try_rotate_oblong_entity)
 
 --- @param event CustomInputEvent
 local function rotate_saved_dolly(event)
+    ---@type LuaPlayer?, PickerDollies.pdata
     local player, pdata = game.get_player(event.player_index), global.players[event.player_index] ---@cast player -?
     if player.cursor_stack.valid_for_read or player.cursor_ghost or player.selected then return end
 
@@ -304,6 +305,7 @@ end
 
 local function on_init()
     global = {} ---@type PickerDollies.global
+    global.players = {} ---@type PickerDollies.pdata
     global.blacklist_names = init_blacklist_names()
     global.oblong_names = init_oblong_names()
 end
