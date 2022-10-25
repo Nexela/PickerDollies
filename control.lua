@@ -12,11 +12,11 @@ assert(remote.interfaces[script.mod_name]["dolly_moved_entity_id"])
 Event.generate_event_name("dolly_moved")
 
 local blacklist_cheat_types = {
-    ["character"]          = true,
-    ["unit"]               = true,
-    ["unit-spawner"]       = true,
-    ["car"]                = true,
-    ["spider-vehicle"]     = true
+    ["character"]      = true,
+    ["unit"]           = true,
+    ["unit-spawner"]   = true,
+    ["car"]            = true,
+    ["spider-vehicle"] = true
 }
 
 local blacklist_types = {
@@ -199,7 +199,7 @@ local function move_entity(event)
             for _, item_entity in pairs(items_on_ground) do
                 if item_entity.valid and not player.mine_entity(item_entity) then
                     local item_pos = item_entity.position
-                    local valid_pos = surface.find_non_colliding_position("item-on-ground", item_pos, 0, .20) or item_pos
+                    -- local valid_pos = surface.find_non_colliding_position("item-on-ground", item_pos, 0, .20) or item_pos
                     item_entity.teleport(item_pos)
                 end
             end
