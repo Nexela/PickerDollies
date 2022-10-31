@@ -313,6 +313,7 @@ Event.register(Event.core_events.on_init, on_init)
 
 local function on_configuration_changed()
     -- Make sure the blacklists exist.
+    global.players = global.players or {}
     global.blacklist_names = global.blacklist_names or init_blacklist_names()
     global.oblong_names = global.oblong_names or init_oblong_names()
 
