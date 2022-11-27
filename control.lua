@@ -117,7 +117,9 @@ end
 
 --- @param event EventData.PickerDollies.CustomInputEvent
 local function move_entity(event)
-    local player, pdata = game.get_player(event.player_index), Player.pdata(event.player_index) ---@cast player -?
+    ---@type LuaPlayer?, PickerDollies.pdata
+    local player, pdata = game.get_player(event.player_index), Player.pdata(event.player_index)
+    if not player then return end
     local save_time = event.save_time or player.mod_settings["dolly-save-entity"].value --[[@as uint]]
     local entity = get_saved_entity(player, pdata, event.tick, save_time)
 
@@ -258,8 +260,9 @@ Event.register({ "dolly-move-north", "dolly-move-east", "dolly-move-south", "dol
 
 --- @param event EventData.CustomInputEvent
 local function try_rotate_oblong_entity(event)
+    ---@type LuaPlayer?, PickerDollies.pdata
     local player, pdata = game.get_player(event.player_index), Player.pdata(event.player_index)
-    ---@cast player -?
+    if not player then return end
     if player.cursor_stack.valid_for_read or player.cursor_ghost then return end
 
     local save_time = player.mod_settings["dolly-save-entity"].value --[[@as uint]]
