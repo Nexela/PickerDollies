@@ -1,6 +1,6 @@
 ---------------------------------------------------------------------------------------------------
 Version: 1.2.6
-Date: ????
+Date: 2022-12-15
   Bugfixes:
     - Fix crash when players are removed, Fixes #21
     - Fix being able to teleport rocket silo, Fixes #16
