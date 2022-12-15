@@ -13,13 +13,6 @@
   "homepage": "",
   "description": "Move most placed entities quickly and easily.",
   "package": {
-    "ignore": [],
-    "scripts": {
-      "datestamp": "../PickerAtheneum/.publish/datestamp.sh",
-      "prepackage": "../PickerAtheneum/.publish/prepackage.sh",
-      "prepublish": "../PickerAtheneum/.publish/prepublish.sh",
-      "publish": "../PickerAtheneum/.publish/publish.sh",
-      "version": "../PickerAtheneum/.publish/version.sh"
-    }
+    "ignore": []
   }
 }
