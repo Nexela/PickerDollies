@@ -271,7 +271,7 @@ local function move_entity(event)
 end
 Event.register({ "dolly-move-north", "dolly-move-east", "dolly-move-south", "dolly-move-west" }, move_entity)
 
---- @param event EventData.CustomInputEvent
+--- @param event EventData.PickerDollies.CustomInputEvent
 local function try_rotate_oblong_entity(event)
     ---@type LuaPlayer?, PickerDollies.pdata
     local player, pdata = game.get_player(event.player_index), Player.pdata(event.player_index)
@@ -283,7 +283,6 @@ local function try_rotate_oblong_entity(event)
     if not (global.oblong_names[entity.name] and not is_blacklisted(entity)) then return end
     if not (player.cheat_mode or player.can_reach_entity(entity)) then return end
 
-    ---@cast event EventData.PickerDollies.CustomInputEvent
     save_entity(pdata, entity, event.tick, save_time)
     event.save_time = save_time
     event.start_pos = entity.position
@@ -295,7 +294,7 @@ local function try_rotate_oblong_entity(event)
 end
 Event.register("dolly-rotate-rectangle", try_rotate_oblong_entity)
 
---- @param event CustomInputEvent
+--- @param event EventData.PickerDollies.CustomInputEvent
 local function rotate_saved_dolly(event)
     ---@type LuaPlayer?, PickerDollies.pdata
     local player, pdata = game.get_player(event.player_index), Player.pdata(event.player_index) ---@cast player -?
