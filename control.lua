@@ -168,12 +168,6 @@ local function move_entity(event)
         local out_of_the_way = start_pos:translate(Direction.opposite_direction(direction), event.tiles_away or 20)
         local final_teleportation = false -- Handling teleportion after an entity has been moved into place and checked again
 
-        --- Store and clear fluids.
-        --- @todo Check if storing/clearing/restoring fluidboxes is still needed.
-        local fluidbox = {} ---@type Fluid
-        for i = 1, #entity.fluidbox do fluidbox[i] = entity.fluidbox[i] end
-        if entity.get_fluid_count() > 0 then entity.clear_fluid_inside() end
-
         ---  Try retries times to teleport the entity out of the way.
         --- @api LuaEntity:can_be_teleported
         local retries = 5
@@ -203,9 +197,6 @@ local function move_entity(event)
                 end
                 entity.teleport(pos)
             end
-
-            --- Insert fluid back here.
-            for i = 1, #fluidbox do entity.fluidbox[i] = fluidbox[i] end
 
             if not raise then return flying_text(player, reason, pos) end
 
