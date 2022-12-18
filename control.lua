@@ -216,6 +216,7 @@ local function move_entity(event)
             local items_on_ground = surface.find_entities_filtered { type = "item-entity", area = target_box }
             for _, item_entity in pairs(items_on_ground) do
                 if item_entity.valid and not player.mine_entity(item_entity) then
+                    --- @todo this doesn't do anything.......
                     local item_pos = item_entity.position
                     -- local valid_pos = surface.find_non_colliding_position("item-on-ground", item_pos, 0, .20) or item_pos
                     item_entity.teleport(item_pos)
@@ -297,7 +298,7 @@ local function try_rotate_oblong_entity(event)
     event.save_time = save_time
     event.start_pos = entity.position
     event.start_direction = entity.direction -- store the direction for later failed teleportation will need to restore it.
-    event.target_direction = Direction.next_direction(entity.direction) --[[@as defines.direction]]
+    event.target_direction = Direction.next_direction(entity.direction)
     event.distance = .5
     event.direction = oblong_diags[event.target_direction] -- Set the translation direction to a diagonal.
     move_entity(event)
@@ -348,7 +349,7 @@ Event.register(Event.core_events.on_configuration_changed, on_configuration_chan
 
 --- @class PickerDollies.pdata
 --- @field dolly_tick uint
---- @field dolly LuaEntity|nil
+--- @field dolly LuaEntity?
 
 --- @class EventData.PickerDollies.CustomInputEvent: EventData.CustomInputEvent
 --- @field direction defines.direction
