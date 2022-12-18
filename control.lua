@@ -236,16 +236,16 @@ local function move_entity(event)
             position = target_pos,
             direction = target_direction,
             force = entity_force,
-            build_check_type = defines.build_check_type.blueprint_ghost,
+            build_check_type = defines.build_check_type.manual, -- Won't allow placing on ghosts/deconstruction proxies
             inner_name = entity.name == "entity-ghost" and entity.ghost_name
         }
 
         --- Allow collisions if the player has the setting enabled.
-        --- @todo Check for ghosts marked for deconstruction in the way.
-        local allow_collisions = settings.global["dolly-allow-ignore-collisions"].value
-        if not (allow_collisions and player.mod_settings["dolly-ignore-collisions"].value)
-            and not (surface.can_place_entity(can_place_params) and not surface.find_entity("entity-ghost", target_pos)) then
-            return teleport_and_update(start_pos, false, { "picker-dollies.no-room", entity.localised_name })
+        local ignore_collisions = settings.global["dolly-allow-ignore-collisions"].value and player.mod_settings["dolly-ignore-collisions"].value
+        if not ignore_collisions then
+            if not (surface.can_place_entity(can_place_params) and not surface.find_entity("entity-ghost", target_pos)) then
+                return teleport_and_update(start_pos, false, { "picker-dollies.no-room", entity.localised_name })
+            end
         end
 
         ---  Check if all the wires can reach.
